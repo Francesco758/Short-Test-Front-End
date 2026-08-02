@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from "react";
-import { FaRocket, FaTimes, FaClipboardList, FaUsers, FaCheck, FaSearch, FaMagic, FaCalendarAlt } from "react-icons/fa";
+import React, { useState, useMemo, useEffect } from "react";
+import { FaRocket, FaTimes, FaClipboardList, FaUsers, FaCheck, FaSearch, FaMagic, FaChevronDown, FaGlobe } from "react-icons/fa";
+import { api } from "../../utils/api";
 import SuccessNotificationModal from "../../models/SuccessNotificationModal";
 
 export default function ShortTestModal({
@@ -8,17 +9,51 @@ export default function ShortTestModal({
   tests = [],
   users = [],
   assignTestToUsers,
+  theme = "dark",
+  defaultTestId = null,
 }) {
+  const isLightTheme = theme === "light";
   const [selectedTestId, setSelectedTestId] = useState(null);
   const [brief, setBrief] = useState("");
   const [selectedUserIds, setSelectedUserIds] = useState([]);
   const [deadline, setDeadline] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showTestList, setShowTestList] = useState(false);
   const [testQuery, setTestQuery] = useState("");
   const [userQuery, setUserQuery] = useState("");
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const selectedTest = useMemo(() => tests.find(t => t.id === selectedTestId) || null, [tests, selectedTestId]);
+  const [dropdownRendered, setDropdownRendered] = useState(false);
+  const [guestMode, setGuestMode] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && defaultTestId) {
+      setSelectedTestId(defaultTestId);
+    } else if (!isOpen) {
+      setSelectedTestId(null);
+      setBrief("");
+      setSelectedUserIds([]);
+      setDeadline("");
+      setError(null);
+      setShowTestList(false);
+      setTestQuery("");
+      setUserQuery("");
+      setGuestMode(false);
+    }
+  }, [isOpen, defaultTestId]);
+
+  useEffect(() => {
+    if (showTestList) {
+      setDropdownRendered(true);
+    } else {
+      const timer = setTimeout(() => setDropdownRendered(false), 700);
+      return () => clearTimeout(timer);
+    }
+  }, [showTestList]);
+  const selectedTest = useMemo(
+    () => tests.find(t => String(t.id) === String(selectedTestId)) || null,
+    [tests, selectedTestId]
+  );
   const isCustomSelected = !!selectedTest?.isCustom;
 
   const filteredTests = useMemo(() => {
@@ -49,15 +84,23 @@ export default function ShortTestModal({
   }
 
   async function handleLaunch() {
-    if (!selectedTestId || selectedUserIds.length === 0) return;
+    if (!selectedTestId) return;
+    if (!guestMode && selectedUserIds.length === 0) return;
     setLoading(true);
     setError(null);
     try {
-      await assignTestToUsers(
-        selectedTestId,
-        selectedUserIds,
-        { notify: true, brief: isCustomSelected ? brief : null, deadline: deadline || null }
-      );
+      if (guestMode) {
+        await api(`/api/company/tests/${selectedTest?.id ?? selectedTestId}/guest-access`, {
+          method: 'POST',
+          body: JSON.stringify({ enabled: true })
+        });
+      } else {
+        await assignTestToUsers(
+          selectedTest?.id ?? selectedTestId,
+          selectedUserIds,
+          { notify: true, brief: isCustomSelected ? brief : null, deadline: deadline || null }
+        );
+      }
       onClose();
       setShowSuccessModal(true);
     } catch (e) {
@@ -69,299 +112,229 @@ export default function ShortTestModal({
 
   if (!isOpen) return null;
 
-  // Group users by function for the "Teams" view
-  const teams = users.reduce((acc, u) => {
-    if (u.function) {
-      acc[u.function] = (acc[u.function] || 0) + 1;
-    }
-    return acc;
-  }, {});
-
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={onClose} />
-      
-      <div className="relative w-full h-full md:w-[95vw] md:h-[95vh] bg-[#0f172a] md:rounded-[40px] shadow-2xl overflow-hidden border border-gray-800 flex flex-col transition-all duration-500 ease-in-out">
-        {/* Header */}
-        <div className="px-10 py-6 border-b border-gray-800 flex items-center justify-between bg-[#0f172a]/80 backdrop-blur-xl z-10">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Configure shorTest</h2>
-            <p className="text-gray-500 text-[10px] font-bold tracking-[0.2em] uppercase">Select tests, participants and launch</p>
-          </div>
-          <button 
-            onClick={onClose} 
-            className="w-8 h-8 rounded-full border border-gray-800 flex items-center justify-center text-gray-500 hover:text-white hover:border-gray-600 transition-all group"
-          >
-            <FaTimes className="w-4 h-4 group-hover:scale-110 transition-transform" />
-          </button>
-        </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className={`absolute inset-0 ${isLightTheme ? 'bg-black/60' : 'bg-black/70'}`} onClick={onClose} />
+      <div className={`rplt-modal-content relative w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-xl border ${isLightTheme ? 'border-emerald-700 bg-white' : 'border-emerald-500 bg-[#09090B]'} flex flex-col`}>
+        <style>{`
+          .rplt-scrollbar-hide {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+          }
+          .rplt-scrollbar-hide::-webkit-scrollbar {
+            width: 0px;
+            height: 0px;
+          }
+          .rplt-dropdown-enter {
+            animation: rplt-dropdown-in 700ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+            transform-origin: top center;
+          }
+          @keyframes rplt-dropdown-in {
+            from { opacity: 0; transform: scaleY(0.92) translateY(-6px); }
+            to   { opacity: 1; transform: scaleY(1) translateY(0); }
+          }
+          .rplt-dropdown-exit {
+            animation: rplt-dropdown-out 700ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+            transform-origin: top center;
+          }
+          @keyframes rplt-dropdown-out {
+            from { opacity: 1; transform: scaleY(1) translateY(0); }
+            to   { opacity: 0; transform: scaleY(0.92) translateY(-6px); }
+          }
+          .rplt-dropdown-item {
+            opacity: 0;
+            transform: translateY(8px);
+            animation: rplt-item-in 750ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+          }
+          @keyframes rplt-item-in {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
+          @media (max-width: 640px) {
+            .rplt-modal-content {
+              margin: 8px !important;
+              max-height: 95vh !important;
+              border-radius: 12px !important;
+            }
+            .rplt-modal-content .rplt-modal-body {
+              padding: 14px !important;
+              gap: 14px !important;
+            }
+            .rplt-modal-content .rplt-participants-header {
+              flex-direction: column !important;
+              align-items: flex-start !important;
+              gap: 8px !important;
+            }
+            .rplt-modal-content .rplt-participants-header .rplt-search-row {
+              width: 100% !important;
+              flex-wrap: wrap !important;
+              gap: 6px !important;
+            }
+            .rplt-modal-content .rplt-participants-header .rplt-search-row input {
+              flex: 1 !important;
+              min-width: 0 !important;
+              width: auto !important;
+            }
+            .rplt-modal-content .rplt-participants-header .rplt-search-row button {
+              display: none !important;
+            }
+            .rplt-modal-content .rplt-footer {
+              padding: 12px 14px !important;
+            }
+          }
+        `}</style>
+        <button
+          onClick={onClose}
+          className={`absolute top-1 right-6 z-50 w-8 h-8 flex items-center justify-center rounded-full ${isLightTheme ? 'text-gray-500 hover:text-gray-900 hover:bg-gray-100' : 'text-gray-400 hover:text-white hover:bg-[#2e2e36]'} transition-colors`}
+        >
+          <FaTimes className="w-4 h-4" />
+        </button>
 
-        <div className="flex-1 overflow-y-auto px-10 py-8 custom-scrollbar space-y-12">
-          
-          {/* Section: SELECT SHORTEST (Tests) */}
-          <div className="space-y-8">
-            <h3 className="text-white font-black text-2xl uppercase tracking-widest flex items-center gap-4">
-              <span className="w-10 h-1 border-t-4 border-[#00f2aa]"></span>
-              Select Shortest
-            </h3>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-              {/* Normal Tests List */}
-              <div className="bg-[#1e293b] border border-gray-800 rounded-3xl p-10 space-y-6 shadow-xl">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-black text-[#00f2aa] uppercase tracking-[0.3em]">Normal Tests</h4>
-                  <div className="relative">
-                    <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
-                    <input
-                      value={testQuery}
-                      onChange={(e) => setTestQuery(e.target.value)}
-                      placeholder="Search tests..."
-                      className="bg-[#0f172a] border border-gray-700 rounded-xl pl-12 pr-4 py-3 text-sm text-gray-300 focus:outline-none focus:border-[#00f2aa] transition-colors w-64"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-4">
-                  {normalTests.map((t) => (
-                    <button
-                      key={t.id}
-                      onClick={() => setSelectedTestId(t.id)}
-                      className={`w-full flex items-center justify-between p-3 rounded-2xl border-2 transition-all duration-300 ${
-                        selectedTestId === t.id 
-                          ? 'border-[#00f2aa] bg-[#00f2aa]/10 shadow-[0_0_20px_rgba(0,242,170,0.1)]' 
-                          : 'border-gray-800 bg-[#0f172a] hover:border-gray-600'
-                      }`}
-                    >
-                      <span className={`text-xs font-bold ${selectedTestId === t.id ? 'text-[#00f2aa]' : 'text-gray-300'}`}>
-                        {t.title}
-                      </span>
-                      {selectedTestId === t.id && (
-                        <div className="w-4 h-4 bg-[#00f2aa] rounded-full flex items-center justify-center">
-                          <FaCheck className="text-[#0f172a] w-2 h-2" />
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                  {normalTests.length === 0 && (
-                    <div className="text-center py-10 text-gray-500 font-bold uppercase tracking-widest text-sm italic">
-                      No tests found matching your search
-                    </div>
-                  )}
-                </div>
-              </div>
+        <div className="rplt-modal-body rplt-scrollbar-hide flex-1 min-h-0 p-6 space-y-6 overflow-auto pt-10 pb-8">
+          {/* Select Short Test */}
+          <div>
+            <button
+              onClick={() => setShowTestList(v => !v)}
+              className={`w-full px-4 py-3 border rounded-md focus:outline-none flex items-center justify-between ${isLightTheme ? 'bg-[#22C58B] border-emerald-700 text-[#0F172A] focus:ring-2 focus:ring-emerald-500' : selectedTest ? 'bg-[#18181B] border-emerald-500 text-[#22C58B] focus:ring-0' : 'bg-[#18181B] border-[#2e2e36] text-gray-200 focus:ring-0'}`}
+            >
+              <span className="font-semibold">{selectedTest ? selectedTest.title : 'Select ShorTest'}</span>
+              <FaChevronDown className={`w-4 h-4 transition-transform ${showTestList ? 'rotate-180' : ''} ${isLightTheme ? 'text-gray-500' : 'text-gray-400'}`} />
+            </button>
 
-              {/* Custom Test & Brief */}
-              <div className="bg-[#1e293b] border border-gray-800 rounded-3xl p-10 space-y-8 shadow-xl">
-                <h4 className="text-xs font-black text-[#00f2aa] uppercase tracking-[0.3em]">Custom Test & Brief</h4>
-                {!customAssigned ? (
-                  <div className="flex flex-col items-center justify-center py-20 bg-[#0f172a] rounded-3xl border-2 border-dashed border-gray-800">
-                    <p className="text-gray-600 font-bold uppercase tracking-widest text-sm">No custom test available</p>
-                  </div>
-                ) : (
-                  <div className="space-y-8">
-                    <button
-                      onClick={() => setSelectedTestId(customAssigned.id)}
-                      className={`w-full flex items-center justify-between p-3 rounded-2xl border-2 transition-all duration-300 ${
-                        selectedTestId === customAssigned.id 
-                          ? 'border-[#00f2aa] bg-[#00f2aa]/10 shadow-[0_0_20px_rgba(0,242,170,0.1)]' 
-                          : 'border-gray-800 bg-[#0f172a] hover:border-gray-600'
-                      }`}
-                    >
-                      <span className={`text-xs font-bold ${selectedTestId === customAssigned.id ? 'text-[#00f2aa]' : 'text-gray-300'}`}>
-                        {customAssigned.title}
-                      </span>
-                      {selectedTestId === customAssigned.id && (
-                        <div className="w-4 h-4 bg-[#00f2aa] rounded-full flex items-center justify-center">
-                          <FaCheck className="text-[#0f172a] w-2 h-2" />
-                        </div>
-                      )}
-                    </button>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">Brief Input</label>
-                        {isCustomSelected && (
-                          <span className="text-[10px] font-black text-[#00f2aa] uppercase tracking-[0.2em] animate-pulse">Ready to input</span>
-                        )}
-                      </div>
-                      <textarea
-                        value={brief}
-                        onChange={(e) => setBrief(e.target.value)}
-                        rows={8}
-                        placeholder={isCustomSelected ? "Paste a short company brief to shape the first question..." : "Brief is available for Custom Test only."}
-                        className={`w-full bg-[#0f172a] border-2 rounded-2xl px-6 py-5 text-gray-300 text-base focus:outline-none transition-all duration-300 ${
-                          isCustomSelected 
-                            ? 'border-gray-700 focus:border-[#00f2aa]' 
-                            : 'border-gray-800 opacity-30 cursor-not-allowed'
-                        }`}
-                        disabled={!isCustomSelected}
-                      />
-                    </div>
-                  </div>
+            <div className={`mt-1 max-h-48 overflow-auto rounded-md border divide-y rplt-scrollbar-hide ${dropdownRendered ? '' : 'hidden'} ${showTestList ? 'rplt-dropdown-enter' : 'rplt-dropdown-exit'} ${isLightTheme ? 'border-emerald-200 bg-white divide-emerald-200' : 'border-[#2e2e36] bg-[#18181B] divide-[#2e2e36]'}`}>
+                {normalTests.map((t, idx) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => { setSelectedTestId(t.id); setShowTestList(false); }}
+                    className={`rplt-dropdown-item w-full text-left px-4 py-3 transition-colors ${isLightTheme ? 'text-gray-900 hover:bg-emerald-50' : 'text-gray-200 hover:bg-[#202025]'}`}
+                    style={{ animationDelay: `${idx * 90}ms` }}
+                  >
+                    {t.title}
+                  </button>
+                ))}
+                {customAssigned && (
+                  <button
+                    key={customAssigned.id}
+                    type="button"
+                    onClick={() => { setSelectedTestId(customAssigned.id); setShowTestList(false); }}
+                    className={`rplt-dropdown-item w-full text-left px-4 py-3 transition-colors flex items-center justify-between ${isLightTheme ? 'text-gray-900 hover:bg-emerald-50' : 'text-gray-200 hover:bg-[#202025]'}`}
+                    style={{ animationDelay: `${normalTests.length * 90}ms` }}
+                  >
+                    <span>{customAssigned.title || 'Custom test'}</span>
+                    <FaMagic className={`w-4 h-4 ${isLightTheme ? 'text-emerald-600' : 'text-emerald-400'}`} />
+                  </button>
+                )}
+                {normalTests.length === 0 && !customAssigned && (
+                  <div className={`px-4 py-3 text-sm ${isLightTheme ? 'text-gray-500' : 'text-gray-400'}`}>No tests found</div>
                 )}
               </div>
-            </div>
           </div>
 
-          {/* Section: SELECT PEOPLE */}
-          <div className="space-y-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-              <h3 className="text-white font-black text-2xl uppercase tracking-widest flex items-center gap-4">
-                <span className="w-10 h-1 border-t-4 border-[#00f2aa]"></span>
-                Select People
-              </h3>
-              <div className="relative">
-                <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
-                <input
-                  value={userQuery}
-                  onChange={(e) => setUserQuery(e.target.value)}
-                  placeholder="Search participants..."
-                  className="bg-[#1e293b] border border-gray-700 rounded-xl pl-12 pr-4 py-3 text-sm text-gray-300 focus:outline-none focus:border-[#00f2aa] transition-colors w-80"
-                />
-              </div>
-            </div>
-            
-            <div className="bg-[#1e293b] border border-gray-800 rounded-3xl overflow-hidden shadow-xl">
-              <div className="max-h-[500px] overflow-y-auto custom-scrollbar">
-                {/* All Organization */}
-                <button
-                  onClick={() => {
-                    const allIds = users.map(u => u.id);
-                    const allSelected = allIds.length > 0 && allIds.every(id => selectedUserIds.includes(id));
-                    setSelectedUserIds(allSelected ? [] : allIds);
-                  }}
-                  className={`w-full flex items-center justify-between px-10 py-2.5 border-b border-gray-800 transition-all duration-300 ${
-                    users.length > 0 && users.every(u => selectedUserIds.includes(u.id)) ? 'bg-[#00f2aa]/5' : 'hover:bg-gray-800/30'
-                  }`}
-                >
-                  <div className="flex items-center gap-6">
-                    <div className={`w-4 h-4 border-2 rounded-md flex items-center justify-center transition-colors ${
-                      users.length > 0 && users.every(u => selectedUserIds.includes(u.id)) ? 'bg-[#00f2aa] border-[#00f2aa]' : 'border-gray-600'
-                    }`}>
-                      {users.length > 0 && users.every(u => selectedUserIds.includes(u.id)) && <FaCheck className="text-[#0f172a] w-2 h-2" />}
-                    </div>
-                    <span className={`text-sm font-bold ${users.length > 0 && users.every(u => selectedUserIds.includes(u.id)) ? 'text-[#00f2aa]' : 'text-gray-300'}`}>
-                      All Organization
-                    </span>
-                  </div>
-                  <span className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em]">{users.length} Members</span>
-                </button>
-
-                {/* Teams */}
-                {Object.entries(teams).map(([teamName, count]) => {
-                  const teamUserIds = users.filter(u => u.function === teamName).map(u => u.id);
-                  const isTeamSelected = teamUserIds.every(id => selectedUserIds.includes(id));
-                  return (
-                    <button
-                      key={teamName}
-                      onClick={() => {
-                        if (isTeamSelected) {
-                          setSelectedUserIds(prev => prev.filter(id => !teamUserIds.includes(id)));
-                        } else {
-                          setSelectedUserIds(prev => [...new Set([...prev, ...teamUserIds])]);
-                        }
-                      }}
-                      className={`w-full flex items-center justify-between px-10 py-2.5 border-b border-gray-800 transition-all duration-300 ${isTeamSelected ? 'bg-[#00f2aa]/5' : 'hover:bg-gray-800/30'}`}
-                    >
-                      <div className="flex items-center gap-6">
-                        <div className={`w-4 h-4 border-2 rounded-md flex items-center justify-center transition-colors ${
-                          isTeamSelected ? 'bg-[#00f2aa] border-[#00f2aa]' : 'border-gray-600'
-                        }`}>
-                          {isTeamSelected && <FaCheck className="text-[#0f172a] w-2 h-2" />}
-                        </div>
-                        <span className={`text-sm font-bold ${isTeamSelected ? 'text-[#00f2aa]' : 'text-gray-300'}`}>{teamName}</span>
-                      </div>
-                      <span className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em]">{count} Members</span>
-                    </button>
-                  );
-                })}
-
-                {/* Individuals */}
-                {filteredUsers.map(u => {
-                  const isSelected = selectedUserIds.includes(u.id);
-                  return (
-                    <button
-                      key={u.id}
-                      onClick={() => toggleUser(u.id)}
-                      className={`w-full flex items-center justify-between px-10 py-2.5 border-b border-gray-800 transition-all duration-300 ${isSelected ? 'bg-[#00f2aa]/5' : 'hover:bg-gray-800/30'}`}
-                    >
-                      <div className="flex items-center gap-6">
-                        <div className={`w-4 h-4 border-2 rounded-md flex items-center justify-center transition-colors ${
-                          isSelected ? 'bg-[#00f2aa] border-[#00f2aa]' : 'border-gray-600'
-                        }`}>
-                          {isSelected && <FaCheck className="text-[#0f172a] w-2 h-2" />}
-                        </div>
-                        <span className={`text-sm font-bold ${isSelected ? 'text-[#00f2aa]' : 'text-gray-300'}`}>{u.name || "Unnamed User"}</span>
-                      </div>
-                      <span className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em]">Individual User</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Deadline - Commented out from UI as requested
-          <div className="space-y-6">
-            <h3 className="text-white font-black text-2xl uppercase tracking-widest flex items-center gap-4">
-              <span className="w-10 h-1 border-t-4 border-[#00f2aa]"></span>
-              Set Deadline
-            </h3>
-            <div className="bg-[#1e293b] border border-gray-800 rounded-3xl p-10 max-w-md shadow-xl">
-              <h4 className="text-[10px] font-black text-[#00f2aa] uppercase tracking-[0.3em] mb-4">Deadline (optional)</h4>
-              <input
-                type="date"
-                value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
-                min={new Date().toISOString().slice(0, 10)}
-                className="w-full bg-[#0f172a] border-2 border-gray-700 rounded-2xl px-6 py-5 text-gray-300 focus:outline-none focus:border-[#00f2aa] transition-all text-lg font-medium"
+          {isCustomSelected && (
+            <div>
+              <label className={`block text-xs font-medium ${isLightTheme ? 'text-gray-500' : 'text-gray-500'} mb-2`}>Manager Brief</label>
+              <textarea
+                value={brief}
+                onChange={(e) => setBrief(e.target.value)}
+                rows={6}
+                placeholder="Inserisci il brief personalizzato"
+                className={`w-full px-4 py-3 ${isLightTheme ? 'bg-white border-gray-300 text-gray-900 placeholder-gray-400' : 'bg-[#18181B] border-[#2e2e36] text-gray-200 placeholder-gray-500'} border rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500`}
               />
             </div>
+          )}
+
+
+
+          {!guestMode && (
+          <div className={`rounded-xl border ${isLightTheme ? 'border-emerald-700 bg-white' : 'border-[#2e2e36] bg-[#18181B]'} p-5`}>
+            <div className="rplt-participants-header flex items-center justify-between mb-4">
+              <div className={`flex items-center gap-2 ${isLightTheme ? 'text-gray-900' : 'text-[#22C58B]'} font-semibold`}>
+                <span>Select participants</span>
+              </div>
+              <div className="rplt-search-row flex items-center gap-2">
+                <div className="relative flex-1 min-w-0">
+                  <FaSearch className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${isLightTheme ? 'text-gray-400' : 'text-gray-500'}`} />
+                  <input
+                    value={userQuery}
+                    onChange={(e) => setUserQuery(e.target.value)}
+                    placeholder="Search participants"
+                    className={`w-full pl-9 pr-3 py-2 text-sm ${isLightTheme ? 'bg-white border-gray-300 text-gray-900 placeholder-gray-400' : 'bg-[#18181B] border-[#2e2e36] text-gray-200 placeholder-gray-500'} border rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500`}
+                  />
+                </div>
+                <button onClick={selectAllUsers} className={`px-3 py-2 text-xs font-bold uppercase tracking-widest border rounded-md ${isLightTheme ? 'border-gray-300 text-gray-600 hover:border-emerald-500 hover:text-emerald-600' : 'border-[#2a364a] text-gray-300 hover:border-emerald-500 hover:text-emerald-500'}`}>Select all</button>
+                <button onClick={clearSelections} className={`px-3 py-2 text-xs font-bold uppercase tracking-widest border rounded-md ${isLightTheme ? 'border-gray-300 text-gray-600 hover:border-emerald-500 hover:text-emerald-600' : 'border-[#2a364a] text-gray-300 hover:border-emerald-500 hover:text-emerald-500'}`}>Clear</button>
+              </div>
+            </div>
+            <div className="rplt-scrollbar-hide space-y-2 max-h-64 overflow-auto">
+              {filteredUsers.map(u => {
+                const selected = selectedUserIds.includes(u.id);
+                const roleDisplay = (u.role || 'USER').toLowerCase().replace('_',' ');
+                return (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => toggleUser(u.id)}
+                    className={`w-full text-left px-4 py-3 rounded-md border transition ${selected ? (isLightTheme ? 'border-emerald-500 text-emerald-600 bg-emerald-50' : 'border-emerald-500 text-emerald-600 bg-[#18181B]') : (isLightTheme ? 'border-gray-200 text-gray-700 hover:border-emerald-500 bg-white' : 'border-[#2a364a] text-gray-200 hover:border-emerald-500')}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium truncate">{u.name || 'Unnamed'}</span>
+                      <span className={`text-xs px-2 py-1 rounded-md border ${isLightTheme ? 'border-gray-200 text-gray-500' : 'border-[#2a364a] text-gray-300'}`}>{roleDisplay}</span>
+                    </div>
+                  </button>
+                );
+              })}
+              {filteredUsers.length === 0 && (
+                <div className={`text-sm ${isLightTheme ? 'text-gray-500' : 'text-gray-400'}`}>No users found</div>
+              )}
+            </div>
           </div>
-          */}
+          )}
+
+          {/* Guest Mode Toggle */}
+          <div className={`rounded-xl border ${isLightTheme ? 'border-emerald-700 bg-white' : 'border-[#2e2e36] bg-[#18181B]'} p-4`}>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={guestMode}
+                onChange={(e) => setGuestMode(e.target.checked)}
+                className="w-5 h-5 accent-emerald-500"
+              />
+              <div className="flex items-center gap-2">
+                <FaGlobe className={`w-4 h-4 ${isLightTheme ? 'text-emerald-600' : 'text-emerald-400'}`} />
+                <div>
+                  <span className={`font-semibold text-sm ${isLightTheme ? 'text-gray-900' : 'text-gray-200'}`}>Guest Mode (Testing)</span>
+                  <p className={`text-xs ${isLightTheme ? 'text-gray-500' : 'text-gray-500'}`}>Anyone with just a name can take this test. No email or password required.</p>
+                </div>
+              </div>
+            </label>
+          </div>
         </div>
 
-        {/* Footer */}
-        <div className="px-10 py-4 border-t border-gray-800 bg-[#0f172a]/80 backdrop-blur-xl flex flex-col items-center gap-3">
+        <div className={`rplt-footer px-6 py-5 border-t ${isLightTheme ? 'border-gray-200 bg-white' : 'border-[#2e2e36] bg-[#09090B]'}`}>
           <button
             onClick={handleLaunch}
-            disabled={!selectedTestId || selectedUserIds.length === 0 || loading}
-            className={`w-full max-w-lg py-3 rounded-2xl text-[#0f172a] font-black text-lg uppercase tracking-[0.2em] transition-all duration-500 shadow-[0_0_30px_rgba(0,242,170,0.1)] flex items-center justify-center gap-4 group ${
-              (!selectedTestId || selectedUserIds.length === 0 || loading)
-                ? 'bg-gray-800 text-gray-600 cursor-not-allowed shadow-none'
-                : 'bg-[#00f2aa] hover:bg-[#00d496] hover:scale-[1.02] hover:shadow-[0_0_40px_rgba(0,242,170,0.3)]'
-            }`}
+            disabled={!selectedTestId || (!guestMode && selectedUserIds.length === 0) || loading}
+            className={`w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-md text-sm font-bold tracking-widest border ${(!selectedTestId || (!guestMode && selectedUserIds.length === 0) || loading) ? (isLightTheme ? 'bg-emerald-50 text-emerald-300 border-emerald-200 cursor-not-allowed' : 'bg-transparent text-[#22C58B]/40 border border-[#22C58B]/30 cursor-not-allowed') : (isLightTheme ? 'bg-[#17be8e] text-[#0F172A] border-emerald-700 hover:bg-[#15a87d]' : 'bg-transparent text-[#22C58B] border border-[#22C58B] hover:bg-[#22C58B]/10')}`}
           >
             {loading ? (
-              <div className="w-6 h-6 border-4 border-[#0f172a] border-t-transparent rounded-full animate-spin" />
+              <div className={`w-4 h-4 border-2 ${isLightTheme ? 'border-white' : 'border-[#0a0e14]'} border-t-transparent rounded-full animate-spin`} />
             ) : (
-              <>
-                Launch shorTest
-                <FaRocket className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-              </>
+              <FaRocket className="w-4 h-4" />
             )}
+            <span>{guestMode ? 'Activate Guest Access' : 'Launch ShortTest'}</span>
           </button>
-
-          <button
-            onClick={onClose}
-            className="text-gray-500 font-black text-[8px] uppercase tracking-[0.4em] hover:text-white transition-colors"
-          >
-            CANCEL AND RETURN TO DASHBOARD
-          </button>
-
-          {error && (
-            <div className="text-red-500 font-black text-xs uppercase tracking-[0.2em] bg-red-500/10 px-6 py-3 rounded-full border border-red-500/20">
-              Error: {error}
-            </div>
-          )}
+          {error && <div className={`pt-3 text-sm ${isLightTheme ? 'text-red-500' : 'text-red-400'}`}>{error}</div>}
         </div>
+        {error && <div className={`px-6 pb-4 text-sm ${isLightTheme ? 'text-red-600' : 'text-red-600'}`}>{error}</div>}
       </div>
 
       {/* Success Notification Modal */}
       <SuccessNotificationModal
         isOpen={showSuccessModal}
         onClose={() => setShowSuccessModal(false)}
-        title="Test Assigned Successfully"
-        message="The test has been assigned to the selected users."
+        title={guestMode ? "Guest Access Activated" : "Test Assigned Successfully"}
+        message={guestMode ? "Anyone can now take this test by logging in as a guest with just their name." : "The test has been assigned to the selected users."}
         type="success"
         duration={3000}
       />

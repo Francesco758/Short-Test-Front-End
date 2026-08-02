@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from "react";
-import AOS from 'aos';
-import { FaPlus, FaEdit, FaTrash, FaUsers, FaChartLine, FaBuilding, FaSearch, FaClipboardList } from "react-icons/fa";
+import { useNavigate } from 'react-router-dom';
+import { FaPlus, FaEdit, FaTrash, FaUsers, FaChartLine, FaBuilding, FaSearch, FaClipboardList, FaSignInAlt, FaSun, FaMoon } from "react-icons/fa";
+import { useSidebar } from '../../components/layout/AdminLayout';
 import { api } from "../../utils/api";
 import DeleteConfirmModal from "../../models/DeleteConfirmModal";
 import SuccessNotificationModal from "../../models/SuccessNotificationModal";
 
 export default function AdminCompaniesPage() {
+  const navigate = useNavigate();
+  const { toggleSidebar, isLightTheme, toggleTheme } = useSidebar();
   const [companies, setCompanies] = useState([]);
   const [tests, setTests] = useState([]); // For assign test dropdown
   const [loading, setLoading] = useState(true);
@@ -38,7 +41,6 @@ export default function AdminCompaniesPage() {
   useEffect(() => {
     fetchCompanies();
     fetchTests();
-    AOS.refresh();
   }, []);
 
   /**
@@ -331,188 +333,243 @@ export default function AdminCompaniesPage() {
   const totalUsers = companies.reduce((total, company) => total + (company._count?.users || 0), 0);
   const totalAssignments = companies.reduce((total, company) => total + (company._count?.assignedTests || 0), 0);
 
+  // Subcomponents
+  const StatsCard = ({ title, value, delay }) => (
+    <div className={`text-left ${isLightTheme ? 'bg-white border-[#D6DEE5] shadow-sm' : 'bg-[#18181B] border-gray-700'} rounded-xl border-[1.5px] p-[min(4vw,16px)] md:p-[min(3vw,20px)] lg:p-[min(0.8vw,12px)] ${isLightTheme ? 'hover:bg-[#ECEFF1]' : 'hover:bg-[#202025]'} transition-colors`}>
+      <div className="flex items-center justify-start text-left text-[min(3vw,16px)] sm:text-[min(2vw,14px)] md:text-[min(1.2vw,12px)] lg:text-[min(0.8vw,10px)] font-extrabold tracking-[0.25em] text-emerald-500 uppercase leading-none mb-[min(1.5vw,8px)] sm:mb-[min(1vw,6px)] lg:mb-[min(0.5vw,4px)] pl-[7%]">
+        {title}
+      </div>
+      <div className="text-[min(8vw,64px)] sm:text-[min(6vw,56px)] md:text-[min(8vh,48px)] lg:text-[min(10vh,56px)] font-bold text-emerald-500 tabular-nums leading-none tracking-tight text-center">
+        {value}
+      </div>
+    </div>
+  );
+
+  // Theme-aware class helper
+  const themeClasses = {
+    container: isLightTheme ? 'bg-white' : 'bg-black',
+    card: isLightTheme ? 'bg-white border-[#D6DEE5] shadow-sm' : 'bg-[#18181B] border-gray-700',
+    cardHover: isLightTheme ? 'hover:bg-[#ECEFF1]' : 'hover:bg-[#202025]',
+    input: isLightTheme ? 'bg-white border-gray-300 text-gray-700 placeholder-gray-500' : 'bg-black border-gray-700 text-gray-200 placeholder-gray-500',
+    inputFocus: 'focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50',
+    text: isLightTheme ? 'text-gray-700' : 'text-gray-200',
+    textMuted: isLightTheme ? 'text-gray-600' : 'text-gray-400',
+    textSecondary: isLightTheme ? 'text-gray-500' : 'text-gray-500',
+    buttonPrimary: isLightTheme ? 'bg-white border-gray-300 text-emerald-600 hover:bg-gray-50' : 'bg-black border-gray-700 text-emerald-500 hover:bg-gray-900',
+    buttonSecondary: isLightTheme ? 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200' : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700',
+    buttonDanger: isLightTheme ? 'bg-red-50 border-red-300 text-red-600 hover:bg-red-100' : 'bg-red-500/10 border-red-500/30 text-red-500 hover:bg-red-500/20',
+    buttonSuccess: isLightTheme ? 'bg-emerald-50 border-emerald-300 text-emerald-600 hover:bg-emerald-100' : 'bg-emerald-500/20 border-emerald-500/50 text-emerald-500 hover:bg-emerald-500/30',
+    buttonViolet: isLightTheme ? 'bg-emerald-50 border-emerald-300 text-emerald-600 hover:bg-emerald-100' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20',
+    modalBg: isLightTheme ? 'bg-white' : 'bg-[#09090B]',
+    modalBorder: isLightTheme ? 'border-gray-300' : 'border-emerald-500',
+    label: isLightTheme ? 'text-gray-700' : 'text-gray-300',
+    selectOption: isLightTheme ? 'bg-white' : 'bg-[#18181B]',
+  };
+
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <div className={`min-h-screen overflow-y-auto ${themeClasses.container} selection:bg-emerald-500/30 px-[min(4vw,16px)] md:px-[min(3vw,24px)] lg:px-[min(2vw,32px)] py-4 md:py-6 lg:pt-2 lg:pb-2 font-montserrat lg:min-h-0 lg:h-screen`}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
+      `}</style>
       {/* HEADER WITH BUTTONS */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6" data-aos="fade-down" data-aos-delay="100">
-        <div>
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900">Companies Management</h1>
-          <p className="text-gray-600 text-sm lg:text-base mt-1">Create and manage companies</p>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4 sm:mb-5">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={toggleSidebar}
+            className={`p-2 rounded-lg transition-colors flex-shrink-0 ${isLightTheme ? 'hover:bg-gray-100' : 'hover:bg-[#18181B]'}`}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={`w-5 h-5 lg:w-[18px] lg:h-[18px] ${isLightTheme ? 'text-[#334155]' : 'text-gray-400'}`}>
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+          </button>
         </div>
         <div className="flex items-center gap-3">
-          <button 
-            onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm sm:text-base shadow-sm"
+          <button
+            onClick={toggleTheme}
+            className={`p-2 rounded-lg transition-colors flex-shrink-0 ${isLightTheme ? 'hover:bg-gray-100' : 'hover:bg-[#18181B]'}`}
+            title={isLightTheme ? 'Switch to Dark' : 'Switch to Light'}
           >
-            <FaPlus className="w-4 h-4" />
+            {isLightTheme ? (
+              <FaMoon className={`w-5 h-5 lg:w-[18px] lg:h-[18px] text-[#334155]`} />
+            ) : (
+              <FaSun className={`w-5 h-5 lg:w-[18px] lg:h-[18px] text-gray-400`} />
+            )}
+          </button>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className={`px-4 py-2 lg:px-[min(1vw,16px)] lg:py-[min(0.55vw,10px)] rounded-xl text-[min(3vw,18px)] sm:text-[min(2vw,16px)] md:text-[min(1.2vw,15px)] lg:text-[min(0.8vw,13px)] font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${themeClasses.buttonPrimary}`}
+          >
+            <FaPlus className="w-4 h-4 lg:w-[min(0.8vw,14px)] lg:h-[min(0.8vw,14px)]" />
             New Company
           </button>
         </div>
       </div>
 
       {/* Search Bar */}
-      <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-200 mb-6">
+      <div className={`${themeClasses.card} rounded-xl border-[1.5px] p-[min(4vw,16px)] md:p-[min(3vw,20px)] lg:p-[min(0.8vw,12px)] mb-4 sm:mb-5`}>
         <div className="relative">
-          <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <FaSearch className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${themeClasses.textSecondary} w-4 h-4 lg:w-[min(0.8vw,16px)] lg:h-[min(0.8vw,16px)]`} />
           <input
             type="text"
             placeholder="Search companies by name..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+            className={`w-full pl-10 pr-4 py-3 border rounded-lg text-[min(3.5vw,16px)] sm:text-[min(2.5vw,15px)] md:text-[min(1.6vw,14px)] lg:text-[min(0.9vw,12px)] ${themeClasses.input} ${themeClasses.inputFocus}`}
           />
         </div>
       </div>
 
       {/* Stats Cards - Responsive Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="text-center p-4 bg-blue-50 rounded-lg" data-aos="fade-up" data-aos-delay="200">
-          <div className="text-2xl font-bold text-blue-600">{totalCompanies}</div>
-          <div className="text-sm text-blue-700">Total Companies</div>
-        </div>
-        <div className="text-center p-4 bg-green-50 rounded-lg" data-aos="fade-up" data-aos-delay="250">
-          <div className="text-2xl font-bold text-green-600">{totalUsers}</div>
-          <div className="text-sm text-green-700">Total Users</div>
-        </div>
-        <div className="text-center p-4 bg-purple-50 rounded-lg" data-aos="fade-up" data-aos-delay="300">
-          <div className="text-2xl font-bold text-purple-600">{totalAssignments}</div>
-          <div className="text-sm text-purple-700">Total Assignments</div>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 mb-4 sm:mb-5">
+        <StatsCard title="COMPANIES" value={totalCompanies} delay="200" />
+        <StatsCard title="USERS" value={totalUsers} delay="250" />
+        <StatsCard title="ASSIGNMENTS" value={totalAssignments} delay="300" />
       </div>
 
+
       {/* Companies List */}
-      <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-200" data-aos="fade-up" data-aos-delay="400">
+      <div className="space-y-4 sm:space-y-5">
         {loading ? (
           <div className="text-center py-8">
-            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-            <p className="text-gray-600 mt-2">Loading companies...</p>
+            <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <p className={`${themeClasses.textMuted} mt-2 text-[min(3.5vw,16px)] sm:text-[min(2.5vw,15px)] md:text-[min(1.6vw,14px)] lg:text-[min(0.9vw,12px)]`}>Loading companies...</p>
           </div>
         ) : error ? (
           <div className="text-center py-8">
-            <div className="text-red-600 mb-2">Error loading companies</div>
-            <p className="text-gray-600">{error}</p>
-            <button 
+            <div className="text-red-500 mb-2 text-[min(4vw,18px)] sm:text-[min(3vw,16px)] md:text-[min(2vw,14px)]">Error loading companies</div>
+            <p className={`${themeClasses.textMuted} text-[min(3.5vw,16px)] sm:text-[min(2.5vw,15px)] md:text-[min(1.6vw,14px)] lg:text-[min(0.9vw,12px)]`}>{error}</p>
+            <button
               onClick={fetchCompanies}
-              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className={`mt-4 px-4 py-2 rounded-xl text-[min(3vw,18px)] sm:text-[min(2vw,16px)] md:text-[min(1.2vw,15px)] lg:text-[min(0.8vw,13px)] font-black uppercase tracking-widest transition-colors ${themeClasses.buttonPrimary}`}
             >
               Try Again
             </button>
           </div>
         ) : filteredCompanies.length === 0 ? (
           <div className="text-center py-8">
-            <FaBuilding className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No companies found</h3>
-            <p className="text-gray-600 mb-4">
+            <FaBuilding className={`w-12 h-12 ${themeClasses.textSecondary} mx-auto mb-4`} />
+            <h3 className={`text-[min(4.5vw,20px)] sm:text-[min(3.5vw,18px)] md:text-[min(2.2vw,16px)] lg:text-[min(1.4vw,14px)] font-medium ${themeClasses.text} mb-2`}>No companies found</h3>
+            <p className={`${themeClasses.textMuted} mb-4 text-[min(3.5vw,16px)] sm:text-[min(2.5vw,15px)] md:text-[min(1.6vw,14px)] lg:text-[min(0.9vw,12px)]`}>
               {searchTerm ? 'Try adjusting your search terms' : 'Get started by creating your first company'}
             </p>
-            <button 
+            <button
               onClick={() => setShowCreateModal(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className={`px-4 py-2 rounded-xl text-[min(3vw,18px)] sm:text-[min(2vw,16px)] md:text-[min(1.2vw,15px)] lg:text-[min(0.8vw,13px)] font-black uppercase tracking-widest transition-colors ${themeClasses.buttonPrimary}`}
             >
               Create Company
             </button>
           </div>
         ) : (
-          <div className="space-y-4">
+          <>
             {filteredCompanies.map((company) => (
-              <div key={company.id} className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
+              <div key={company.id} className={`p-[min(4vw,16px)] md:p-[min(3vw,20px)] lg:p-[min(0.8vw,12px)] border rounded-xl transition-colors ${isLightTheme ? 'bg-white border-[#D6DEE5] hover:bg-[#F5F5F5]' : 'bg-[#18181B] border-gray-700 hover:bg-[#202025]'}`}>
+                <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
                   <div className="flex-1">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-2">
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <FaBuilding className="w-5 h-5 text-white" />
+                      <div className="w-10 h-10 lg:w-[min(2.5vw,44px)] lg:h-[min(2.5vw,44px)] bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <FaBuilding className="w-5 h-5 lg:w-[min(1.2vw,22px)] lg:h-[min(1.2vw,22px)] text-white" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 text-lg break-words">{company.name}</h3>
-                        <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mt-2">
+                        <h3 className={`font-semibold text-[min(4.5vw,20px)] sm:text-[min(3.5vw,18px)] md:text-[min(2.2vw,16px)] lg:text-[min(1.4vw,14px)] break-words ${themeClasses.text}`}>{company.name}</h3>
+                        <div className={`flex flex-wrap items-center gap-4 text-[min(3.5vw,16px)] sm:text-[min(2.5vw,15px)] md:text-[min(1.6vw,14px)] lg:text-[min(0.9vw,12px)] ${themeClasses.textMuted} mt-2`}>
                           <div className="flex items-center gap-2">
-                            <FaUsers className="w-4 h-4 text-gray-400" />
+                            <FaUsers className={`w-4 h-4 lg:w-[min(0.8vw,16px)] lg:h-[min(0.8vw,16px)] ${themeClasses.textSecondary}`} />
                             <span>{company._count?.users || 0} users</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <FaChartLine className="w-4 h-4 text-gray-400" />
+                            <FaChartLine className={`w-4 h-4 lg:w-[min(0.8vw,16px)] lg:h-[min(0.8vw,16px)] ${themeClasses.textSecondary}`} />
                             <span>{company._count?.assignedTests || 0} assigned tests</span>
                           </div>
                         </div>
                       </div>
                     </div>
-                    <div className="text-xs text-gray-500 mt-2">
+                    <div className={`text-[min(3vw,14px)] sm:text-[min(2.2vw,13px)] md:text-[min(1.4vw,12px)] lg:text-[min(0.8vw,11px)] ${themeClasses.textSecondary} mt-2`}>
                       Created: {new Date(company.createdAt).toLocaleDateString()}
                     </div>
                   </div>
-                  
-                  <div className="flex flex-wrap gap-2 justify-start lg:justify-end">
+
+                  <div className="flex-shrink-0 flex items-center flex-wrap gap-2 justify-start lg:justify-end">
+                    <button
+                      onClick={() => {
+                        localStorage.setItem('impersonatedCompanyId', String(company.id));
+                        navigate('/company');
+                      }}
+                      className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-2 text-[min(3.5vw,14px)] sm:text-[min(2.5vw,13px)] md:text-[min(1.6vw,12px)] lg:text-[min(0.8vw,11px)] ${themeClasses.buttonViolet}`}
+                    >
+                      <FaSignInAlt className="w-3 h-3 lg:w-[min(0.7vw,14px)] lg:h-[min(0.7vw,14px)]" />
+                      Login As
+                    </button>
                     <button
                       onClick={() => openAssignModal(company)}
-                      className="px-3 py-1 bg-green-50 border border-green-200 text-green-700 rounded-md hover:bg-green-100 transition-colors flex items-center gap-2 text-sm"
+                      className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-2 text-[min(3.5vw,14px)] sm:text-[min(2.5vw,13px)] md:text-[min(1.6vw,12px)] lg:text-[min(0.8vw,11px)] ${themeClasses.buttonSuccess}`}
                     >
-                      <FaClipboardList className="w-3 h-3" />
+                      <FaClipboardList className="w-3 h-3 lg:w-[min(0.7vw,14px)] lg:h-[min(0.7vw,14px)]" />
                       Assign Test
                     </button>
                     <button
                       onClick={() => openEditModal(company)}
-                      className="px-3 py-1 bg-blue-50 border border-blue-200 text-blue-700 rounded-md hover:bg-blue-100 transition-colors flex items-center gap-2 text-sm"
+                      className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-2 text-[min(3.5vw,14px)] sm:text-[min(2.5vw,13px)] md:text-[min(1.6vw,12px)] lg:text-[min(0.8vw,11px)] ${themeClasses.buttonSecondary}`}
                     >
-                      <FaEdit className="w-3 h-3" />
+                      <FaEdit className="w-3 h-3 lg:w-[min(0.7vw,14px)] lg:h-[min(0.7vw,14px)]" />
                       Edit
                     </button>
                     <button
                       onClick={() => showDeleteConfirmation(company)}
-                      className="px-3 py-1 bg-red-50 border border-red-200 text-red-700 rounded-md hover:bg-red-100 transition-colors flex items-center gap-2 text-sm"
+                      className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-2 text-[min(3.5vw,14px)] sm:text-[min(2.5vw,13px)] md:text-[min(1.6vw,12px)] lg:text-[min(0.8vw,11px)] ${themeClasses.buttonDanger}`}
                     >
-                      <FaTrash className="w-3 h-3" />
+                      <FaTrash className="w-3 h-3 lg:w-[min(0.7vw,14px)] lg:h-[min(0.7vw,14px)]" />
                       Delete
                     </button>
                   </div>
                 </div>
               </div>
             ))}
-          </div>
+          </>
         )}
       </div>
 
       {/* Create Company Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Create New Company</h3>
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className={`${themeClasses.modalBg} rounded-xl border-[1.5px] ${themeClasses.modalBorder} p-6 w-full max-w-md max-h-[90vh] overflow-y-auto`}>
+            <h3 className="text-[min(4.5vw,20px)] sm:text-[min(3.5vw,18px)] md:text-[min(2.2vw,16px)] lg:text-[min(1.4vw,18px)] font-extrabold tracking-[0.25em] text-emerald-500 uppercase mb-6">Create New Company</h3>
             <form onSubmit={handleCreateCompany}>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className={`block text-[min(3.5vw,14px)] sm:text-[min(2.5vw,13px)] md:text-[min(1.6vw,12px)] lg:text-[min(0.9vw,12px)] font-medium ${themeClasses.label} mb-2`}>
                     Company Name *
                   </label>
                   <input
                     type="text"
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className={`w-full p-3 border rounded-lg ${themeClasses.inputFocus} text-[min(3.5vw,16px)] sm:text-[min(2.5vw,15px)] md:text-[min(1.6vw,14px)] lg:text-[min(0.9vw,14px)] ${themeClasses.input}`}
                     placeholder="Enter company name"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className={`block text-[min(3.5vw,14px)] sm:text-[min(2.5vw,13px)] md:text-[min(1.6vw,12px)] lg:text-[min(0.9vw,12px)] font-medium ${themeClasses.label} mb-2`}>
                     Admin Email *
                   </label>
                   <input
                     type="email"
                     value={companyEmail}
                     onChange={(e) => setCompanyEmail(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className={`w-full p-3 border rounded-lg ${themeClasses.inputFocus} text-[min(3.5vw,16px)] sm:text-[min(2.5vw,15px)] md:text-[min(1.6vw,14px)] lg:text-[min(0.9vw,14px)] ${themeClasses.input}`}
                     placeholder="Enter admin email"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className={`block text-[min(3.5vw,14px)] sm:text-[min(2.5vw,13px)] md:text-[min(1.6vw,12px)] lg:text-[min(0.9vw,12px)] font-medium ${themeClasses.label} mb-2`}>
                     Admin Password *
                   </label>
                   <input
                     type="password"
                     value={companyPassword}
                     onChange={(e) => setCompanyPassword(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className={`w-full p-3 border rounded-lg ${themeClasses.inputFocus} text-[min(3.5vw,16px)] sm:text-[min(2.5vw,15px)] md:text-[min(1.6vw,14px)] lg:text-[min(0.9vw,14px)] ${themeClasses.input}`}
                     placeholder="Enter admin password (min. 6 characters)"
                     required
                     minLength="6"
@@ -523,7 +580,7 @@ export default function AdminCompaniesPage() {
                 <button
                   type="button"
                   onClick={closeModals}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                  className={`flex-1 px-4 py-2 rounded-xl text-[min(3.5vw,14px)] sm:text-[min(2.5vw,13px)] md:text-[min(1.6vw,12px)] lg:text-[min(0.9vw,12px)] font-black uppercase tracking-widest transition-colors ${themeClasses.buttonSecondary}`}
                   disabled={formLoading}
                 >
                   Cancel
@@ -531,7 +588,7 @@ export default function AdminCompaniesPage() {
                 <button
                   type="submit"
                   disabled={formLoading}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm"
+                  className={`flex-1 px-4 py-2 rounded-xl text-[min(3.5vw,14px)] sm:text-[min(2.5vw,13px)] md:text-[min(1.6vw,12px)] lg:text-[min(0.9vw,12px)] font-black uppercase tracking-widest disabled:opacity-50 transition-colors ${themeClasses.buttonSuccess}`}
                 >
                   {formLoading ? 'Creating...' : 'Create Company'}
                 </button>
@@ -543,46 +600,46 @@ export default function AdminCompaniesPage() {
 
       {/* Edit Company Modal */}
       {showEditModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit Company</h3>
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className={`${themeClasses.modalBg} rounded-xl border-[1.5px] ${themeClasses.modalBorder} p-6 w-full max-w-md max-h-[90vh] overflow-y-auto`}>
+            <h3 className="text-[min(4.5vw,20px)] sm:text-[min(3.5vw,18px)] md:text-[min(2.2vw,16px)] lg:text-[min(1.4vw,18px)] font-extrabold tracking-[0.25em] text-emerald-500 uppercase mb-6">Edit Company</h3>
             <form onSubmit={handleUpdateCompany}>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className={`block text-[min(3.5vw,14px)] sm:text-[min(2.5vw,13px)] md:text-[min(1.6vw,12px)] lg:text-[min(0.9vw,12px)] font-medium ${themeClasses.label} mb-2`}>
                     Company Name *
                   </label>
                   <input
                     type="text"
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className={`w-full p-3 border rounded-lg ${themeClasses.inputFocus} text-[min(3.5vw,16px)] sm:text-[min(2.5vw,15px)] md:text-[min(1.6vw,14px)] lg:text-[min(0.9vw,14px)] ${themeClasses.input}`}
                     placeholder="Enter company name"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className={`block text-[min(3.5vw,14px)] sm:text-[min(2.5vw,13px)] md:text-[min(1.6vw,12px)] lg:text-[min(0.9vw,12px)] font-medium ${themeClasses.label} mb-2`}>
                     Admin Email *
                   </label>
                   <input
                     type="email"
                     value={companyEmail}
                     onChange={(e) => setCompanyEmail(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className={`w-full p-3 border rounded-lg ${themeClasses.inputFocus} text-[min(3.5vw,16px)] sm:text-[min(2.5vw,15px)] md:text-[min(1.6vw,14px)] lg:text-[min(0.9vw,14px)] ${themeClasses.input}`}
                     placeholder="Enter admin email"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className={`block text-[min(3.5vw,14px)] sm:text-[min(2.5vw,13px)] md:text-[min(1.6vw,12px)] lg:text-[min(0.9vw,12px)] font-medium ${themeClasses.label} mb-2`}>
                     New Password (Optional)
                   </label>
                   <input
                     type="password"
                     value={companyPassword}
                     onChange={(e) => setCompanyPassword(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className={`w-full p-3 border rounded-lg ${themeClasses.inputFocus} text-[min(3.5vw,16px)] sm:text-[min(2.5vw,15px)] md:text-[min(1.6vw,14px)] lg:text-[min(0.9vw,14px)] ${themeClasses.input}`}
                     placeholder="Leave blank to keep current password"
                     minLength="6"
                   />
@@ -592,7 +649,7 @@ export default function AdminCompaniesPage() {
                 <button
                   type="button"
                   onClick={closeModals}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                  className={`flex-1 px-4 py-2 rounded-xl text-[min(3.5vw,14px)] sm:text-[min(2.5vw,13px)] md:text-[min(1.6vw,12px)] lg:text-[min(0.9vw,12px)] font-black uppercase tracking-widest transition-colors ${themeClasses.buttonSecondary}`}
                   disabled={formLoading}
                 >
                   Cancel
@@ -600,7 +657,7 @@ export default function AdminCompaniesPage() {
                 <button
                   type="submit"
                   disabled={formLoading}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm"
+                  className={`flex-1 px-4 py-2 rounded-xl text-[min(3.5vw,14px)] sm:text-[min(2.5vw,13px)] md:text-[min(1.6vw,12px)] lg:text-[min(0.9vw,12px)] font-black uppercase tracking-widest disabled:opacity-50 transition-colors ${themeClasses.buttonSecondary}`}
                 >
                   {formLoading ? 'Updating...' : 'Update Company'}
                 </button>
@@ -612,33 +669,33 @@ export default function AdminCompaniesPage() {
 
       {/* Assign Test Modal */}
       {showAssignModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className={`${themeClasses.modalBg} rounded-xl border-[1.5px] ${themeClasses.modalBorder} p-6 w-full max-w-md`}>
+            <h3 className="text-[min(4.5vw,20px)] sm:text-[min(3.5vw,18px)] md:text-[min(2.2vw,16px)] lg:text-[min(1.4vw,18px)] font-extrabold tracking-[0.25em] text-emerald-500 uppercase mb-6">
               Assign Test to {selectedCompany?.name}
             </h3>
             <form onSubmit={handleAssignTest}>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className={`block text-[min(3.5vw,14px)] sm:text-[min(2.5vw,13px)] md:text-[min(1.6vw,12px)] lg:text-[min(0.9vw,12px)] font-medium ${themeClasses.label} mb-2`}>
                     Select Test *
                   </label>
                   <select
                     value={selectedTest}
                     onChange={(e) => setSelectedTest(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className={`w-full p-3 border rounded-lg ${themeClasses.inputFocus} text-[min(3.5vw,16px)] sm:text-[min(2.5vw,15px)] md:text-[min(1.6vw,14px)] lg:text-[min(0.9vw,14px)] ${themeClasses.input}`}
                     required
                     disabled={testsLoading}
                   >
-                    <option value="">Choose a test...</option>
+                    <option value="" className={themeClasses.selectOption}>Choose a test...</option>
                     {tests.map((test) => (
-                      <option key={test.id} value={test.id}>
+                      <option key={test.id} value={test.id} className={themeClasses.selectOption}>
                         {test.title} {test.status && `(${test.status})`}
                       </option>
                     ))}
                   </select>
                   {testsLoading && (
-                    <p className="text-xs text-gray-500 mt-1">Loading tests...</p>
+                    <p className={`text-[min(3vw,12px)] sm:text-[min(2.2vw,11px)] md:text-[min(1.4vw,11px)] lg:text-[min(0.8vw,11px)] ${themeClasses.textMuted} mt-2`}>Loading tests...</p>
                   )}
                 </div>
               </div>
@@ -646,7 +703,7 @@ export default function AdminCompaniesPage() {
                 <button
                   type="button"
                   onClick={closeModals}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                  className={`flex-1 px-4 py-2 rounded-xl text-[min(3.5vw,14px)] sm:text-[min(2.5vw,13px)] md:text-[min(1.6vw,12px)] lg:text-[min(0.9vw,12px)] font-black uppercase tracking-widest transition-colors ${themeClasses.buttonSecondary}`}
                   disabled={assignLoading}
                 >
                   Cancel
@@ -654,7 +711,7 @@ export default function AdminCompaniesPage() {
                 <button
                   type="submit"
                   disabled={assignLoading || !selectedTest}
-                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors text-sm"
+                  className={`flex-1 px-4 py-2 rounded-xl text-[min(3.5vw,14px)] sm:text-[min(2.5vw,13px)] md:text-[min(1.6vw,12px)] lg:text-[min(0.9vw,12px)] font-black uppercase tracking-widest disabled:opacity-50 transition-colors ${themeClasses.buttonSuccess}`}
                 >
                   {assignLoading ? 'Assigning...' : 'Assign Test'}
                 </button>

@@ -1,39 +1,82 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useRef, useEffect } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { api } from '../utils/api';
 import { saveAuth } from '../utils/auth';
 import { useNavigate, Link } from 'react-router-dom';
-import AOS from 'aos';
-import { 
-  FaEnvelope, 
-  FaLock, 
-  FaEye, 
-  FaEyeSlash, 
-  FaUser, 
-  FaRocket, 
-  FaShieldAlt,
-  FaArrowRight,
-  FaExclamationTriangle,
-  FaUserPlus,
-  FaBuilding
-} from 'react-icons/fa';
+import { FaChevronDown, FaArrowLeft } from 'react-icons/fa';
+
+const organizationTypes = [
+  { value: 'COMPANY', label: 'Company' },
+  { value: 'TEAM', label: 'Team' },
+  { value: 'UNIVERSITY', label: 'University' },
+  { value: 'CLASSROOM', label: 'Classroom' }
+];
+
+const organizationSizes = [
+  { value: '1-10', label: '1-10 employees' },
+  { value: '11-50', label: '11-50 employees' },
+  { value: '51-200', label: '51-200 employees' },
+  { value: '201-1000', label: '201-1000 employees' },
+  { value: '1000+', label: '1000+ employees' }
+];
+
+const countries = [
+  'Albania','Algeria','Argentina','Armenia','Australia','Austria','Azerbaijan','Bahrain','Bangladesh',
+  'Belarus','Belgium','Bolivia','Bosnia and Herzegovina','Brazil','Bulgaria','Cambodia','Canada',
+  'Chile','China','Colombia','Costa Rica','Croatia','Cuba','Czech Republic','Denmark','Dominican Republic',
+  'Ecuador','Egypt','Estonia','Ethiopia','Finland','France','Georgia','Germany','Ghana','Greece',
+  'Guatemala','Honduras','Hong Kong','Hungary','Iceland','India','Indonesia','Iran','Iraq','Ireland',
+  'Israel','Italy','Jamaica','Japan','Jordan','Kazakhstan','Kenya','Kuwait','Latvia','Lebanon',
+  'Lithuania','Luxembourg','Malaysia','Mexico','Morocco','Nepal','Netherlands','New Zealand','Nigeria',
+  'North Macedonia','Norway','Oman','Pakistan','Panama','Paraguay','Peru','Philippines','Poland',
+  'Portugal','Qatar','Romania','Russia','Saudi Arabia','Senegal','Serbia','Singapore','Slovakia',
+  'Slovenia','South Africa','South Korea','Spain','Sri Lanka','Sweden','Switzerland','Taiwan',
+  'Tanzania','Thailand','Tunisia','Turkey','UAE','Uganda','Ukraine','United Kingdom','United States',
+  'Uruguay','Uzbekistan','Venezuela','Vietnam','Zimbabwe'
+];
 
 export default function Register() {
-  useEffect(() => {
-    AOS.refresh();
-  }, []);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
-    confirmPassword: '',
-    companyName: ''
+    companyName: '',
+    organizationType: 'COMPANY',
+    organizationSize: '',
+    country: ''
   });
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [theme, setTheme] = useState(() => localStorage.getItem('authTheme') || 'dark');
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
+  const isLightTheme = theme === 'light';
+
+  const [countrySearch, setCountrySearch] = useState('');
+  const [countryOpen, setCountryOpen] = useState(false);
+  const countryRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (countryRef.current && !countryRef.current.contains(e.target)) {
+        setCountryOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredCountries = formData.country
+    ? countries.filter(c => c.toLowerCase().includes(countrySearch.toLowerCase()))
+    : countries.filter(c => c.toLowerCase().includes(countrySearch.toLowerCase()));
+
+  const toggleTheme = () => {
+    setTheme(prev => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('authTheme', next);
+      return next;
+    });
+  };
 
   const handleChange = (e) => {
     setFormData({
@@ -47,13 +90,6 @@ export default function Register() {
     setError(null);
     setLoading(true);
 
-    // Validation - Company registration requires all fields
-    if (!formData.name.trim() || !formData.email.trim() || !formData.password || !formData.companyName.trim()) {
-      setError('Please fill in all fields');
-      setLoading(false);
-      return;
-    }
-
     if (!formData.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
       setError('Please enter a valid email address');
       setLoading(false);
@@ -66,36 +102,26 @@ export default function Register() {
       return;
     }
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      setLoading(false);
-      return;
-    }
-
     try {
-      // Updated payload to match backend expectations
       const payload = {
         name: formData.name.trim(),
         email: formData.email.trim(),
         password: formData.password,
-        companyName: formData.companyName.trim()
-        // Removed isCompany flag - backend automatically detects COMPANY_ADMIN from companyName
+        companyName: formData.companyName.trim(),
+        organizationType: formData.organizationType,
+        organizationSize: formData.organizationSize || null,
+        country: formData.country || null
       };
 
       const data = await api('/api/auth/register', {
         method: 'POST',
         body: JSON.stringify(payload)
       });
-      
-      // Save auth data and update context
+
       saveAuth({ token: data.token, user: data.user });
       login({ token: data.token, user: data.user });
-      
-      // Redirect COMPANY_ADMIN to company dashboard
       navigate('/company');
-      
     } catch (err) {
-      // Handle backend errors
       setError(err?.error || err?.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
@@ -103,286 +129,242 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Animated Background Shapes */}
-      <div className="absolute inset-0 opacity-50">
-        <div className="absolute top-0 left-0 w-72 h-72 bg-green-100 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
-        <div className="absolute top-0 right-0 w-72 h-72 bg-blue-100 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
-        <div className="absolute -bottom-8 left-20 w-72 h-72 bg-indigo-100 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
-      </div>
-
-      <div className="relative z-10">
-        {/* Header */}
-        <div className="sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="flex justify-center" data-aos="fade-down" data-aos-delay="100">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-gradient-to-r from-green-600 to-blue-600 rounded-lg flex items-center justify-center shadow-md" data-aos="zoom-in" data-aos-delay="150">
-                <FaBuilding className="text-white text-lg" />
-              </div>
-              <span className="text-2xl font-bold text-gray-900" data-aos="fade-right" data-aos-delay="200">shorTest</span>
-            </div>
-          </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900" data-aos="fade-up" data-aos-delay="250">
-            Create Company Account
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600" data-aos="fade-up" data-aos-delay="300">
-            Register your company to start using shorTest
-          </p>
+    <div className={`min-h-screen flex flex-col ${isLightTheme ? 'bg-white' : 'bg-[#0d1117]'}`}>
+      {/* Header */}
+      <header className={`flex items-center justify-between px-4 sm:px-6 lg:px-8 py-4 sm:py-5 border-b ${isLightTheme ? 'border-emerald-700' : 'border-gray-800'}`}>
+        <div className="flex items-center gap-3">
+          <Link to="/" className={`${isLightTheme ? 'text-emerald-700 hover:text-emerald-900' : 'text-gray-400 hover:text-white'} transition-colors`}>
+            <FaArrowLeft className="w-4 h-4" />
+          </Link>
+          <Link to="/" className={`text-xs sm:text-sm font-medium tracking-widest ${isLightTheme ? 'text-emerald-700' : 'text-gray-400'}`}>
+            R E G I S T R A T I O N
+          </Link>
         </div>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button
+            onClick={toggleTheme}
+            className={`px-3 sm:px-4 py-2 text-xs font-semibold rounded-md transition-colors ${isLightTheme ? 'bg-white border border-emerald-700 text-gray-900 hover:bg-gray-50' : 'text-gray-300 bg-[#1c2128] border border-gray-700 hover:bg-[#262c36]'}`}
+          >
+            <span className="hidden sm:inline">THEME: </span>{isLightTheme ? 'DARK' : 'LIGHT'}
+          </button>
+        </div>
+      </header>
 
-        {/* Register Form */}
-        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md" data-aos="fade-up" data-aos-delay="400">
-          <div className="bg-white py-8 px-4 shadow-lg sm:rounded-xl sm:px-10 border border-gray-200/60 backdrop-blur-sm">
-            {/* Info Box */}
-            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg" data-aos="zoom-in" data-aos-delay="450">
-              <div className="flex items-start gap-3">
-                <FaBuilding className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-blue-800">Company Registration Only</p>
-                  <p className="text-xs text-blue-600 mt-1">
-                    Individual users will be added by company administrators. This registration is for company administrators only.
-                  </p>
-                </div>
-              </div>
-            </div>
+      {/* Main Content */}
+      <main className="flex-1 flex items-start sm:items-center justify-center px-3 sm:px-4 lg:px-6 py-6 sm:py-8 lg:py-12">
+        <div className="w-full max-w-2xl mx-auto">
+          {/* Card */}
+          <div className={`border rounded-xl p-4 sm:p-6 md:p-8 lg:p-10 ${isLightTheme ? 'bg-white border-emerald-700' : 'bg-[#161b22] border-gray-800'}`}>
+            {/* Title */}
+            <h1 className={`text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold mb-2 sm:mb-3 ${isLightTheme ? 'text-[#0F172A]' : 'text-white'}`}>
+              Create Organization Profile
+            </h1>
+            <p className={`text-xs sm:text-sm mb-6 sm:mb-8 ${isLightTheme ? 'text-gray-500' : 'text-gray-400'}`}>
+              Complete all fields.
+            </p>
 
+            {/* Error */}
             {error && (
-              <div className="mb-6 rounded-lg bg-red-50 p-4 border border-red-200 flex items-start gap-3">
-                <FaExclamationTriangle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-red-800">{error}</p>
-                </div>
+              <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-900/30 border border-red-800 rounded-lg">
+                <p className="text-xs sm:text-sm text-red-400">{error}</p>
               </div>
             )}
 
-            <form onSubmit={submit} className="space-y-6">
-              {/* Company Name Field */}
-              <div>
-                <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 mb-2">
-                  Company Name *
+            <form onSubmit={submit}>
+              {/* Organization Type */}
+              <div className="mb-4 sm:mb-6">
+                <label className={`block text-xs sm:text-sm mb-2 ${isLightTheme ? 'text-gray-600' : 'text-gray-400'}`}>
+                  Organization type
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FaBuilding className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    id="companyName"
-                    name="companyName"
-                    type="text"
-                    value={formData.companyName}
+                  <select
+                    name="organizationType"
+                    value={formData.organizationType}
                     onChange={handleChange}
-                    className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-all duration-200"
-                    placeholder="My Company LLC"
-                    required
                     disabled={loading}
-                  />
+                    className={`w-full min-h-[44px] appearance-none border text-sm rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 transition-colors cursor-pointer focus:outline-none focus:border-[#00d4aa] focus:ring-1 focus:ring-[#00d4aa] ${isLightTheme ? 'bg-white border-emerald-700 text-[#0F172A]' : 'bg-[#0d1117] border-[#30363d] text-white'}`}
+                  >
+                    {organizationTypes.map(type => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                  <FaChevronDown className={`absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 pointer-events-none w-4 h-4 ${isLightTheme ? 'text-gray-400' : 'text-gray-500'}`} />
                 </div>
               </div>
 
-              {/* Admin Name Field */}
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                  Administrator Full Name *
+              {/* Organization Size */}
+              <div className="mb-4 sm:mb-6">
+                <label className={`block text-xs sm:text-sm mb-2 ${isLightTheme ? 'text-gray-600' : 'text-gray-400'}`}>
+                  Organization size
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FaUser className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    id="name"
-                    name="name"
-                    type="text"
-                    autoComplete="name"
-                    value={formData.name}
+                  <select
+                    name="organizationSize"
+                    value={formData.organizationSize}
                     onChange={handleChange}
-                    className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-all duration-200"
-                    placeholder="John Doe"
-                    required
                     disabled={loading}
-                  />
+                    className={`w-full min-h-[44px] appearance-none border text-sm rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 transition-colors cursor-pointer focus:outline-none focus:border-[#00d4aa] focus:ring-1 focus:ring-[#00d4aa] ${isLightTheme ? 'bg-white border-emerald-700 text-[#0F172A]' : 'bg-[#0d1117] border-[#30363d] text-white'}`}
+                  >
+                    <option value="">Select size</option>
+                    {organizationSizes.map(size => (
+                      <option key={size.value} value={size.value}>
+                        {size.label}
+                      </option>
+                    ))}
+                  </select>
+                  <FaChevronDown className={`absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 pointer-events-none w-4 h-4 ${isLightTheme ? 'text-gray-400' : 'text-gray-500'}`} />
                 </div>
               </div>
 
-              {/* Email Field */}
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  Administrator Email *
+              {/* Country (searchable) */}
+              <div className="mb-4 sm:mb-6 relative" ref={countryRef}>
+                <label className={`block text-xs sm:text-sm mb-2 ${isLightTheme ? 'text-gray-600' : 'text-gray-400'}`}>
+                  Country
                 </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FaEnvelope className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-all duration-200"
-                    placeholder="admin@company.com"
-                    required
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-
-              {/* Password Field */}
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                  Password *
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FaLock className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    id="password"
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="new-password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-all duration-200"
-                    placeholder="At least 6 characters"
-                    required
-                    disabled={loading}
-                    minLength="6"
-                  />
+                <input
+                  type="text"
+                  value={countryOpen ? countrySearch : formData.country}
+                  onChange={(e) => {
+                    setCountrySearch(e.target.value);
+                    setCountryOpen(true);
+                    if (formData.country) setFormData(prev => ({ ...prev, country: '' }));
+                  }}
+                  onFocus={() => {
+                    setCountrySearch('');
+                    setCountryOpen(true);
+                  }}
+                  placeholder={formData.country || 'Search country...'}
+                  disabled={loading}
+                  className={`w-full min-h-[44px] border text-sm rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 transition-colors focus:outline-none focus:border-[#00d4aa] focus:ring-1 focus:ring-[#00d4aa] ${isLightTheme ? 'bg-white border-emerald-700 text-[#0F172A] placeholder-gray-400' : 'bg-[#0d1117] border-[#30363d] text-white placeholder-gray-600'}`}
+                />
+                {formData.country && !countryOpen && (
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                    onClick={() => {
+                      setFormData(prev => ({ ...prev, country: '' }));
+                      setCountrySearch('');
+                    }}
+                    className={`absolute right-3 top-[38px] text-xs ${isLightTheme ? 'text-gray-400 hover:text-gray-600' : 'text-gray-500 hover:text-gray-300'}`}
                   >
-                    {showPassword ? (
-                      <FaEyeSlash className="w-5 h-5" />
-                    ) : (
-                      <FaEye className="w-5 h-5" />
-                    )}
+                    ✕
                   </button>
-                </div>
-              </div>
-
-              {/* Confirm Password Field */}
-              <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                  Confirm Password *
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FaLock className="h-5 w-5 text-gray-400" />
+                )}
+                {countryOpen && (
+                  <div className={`absolute top-full left-0 right-0 mt-1 z-50 max-h-[200px] overflow-y-auto rounded-lg border shadow-xl ${isLightTheme ? 'bg-white border-gray-200' : 'bg-[#161b22] border-[#30363d]'}`}>
+                    {filteredCountries.length === 0 && (
+                      <div className={`px-3 py-2 text-xs ${isLightTheme ? 'text-gray-400' : 'text-gray-500'}`}>No results</div>
+                    )}
+                    {filteredCountries.map(c => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => {
+                          setFormData(prev => ({ ...prev, country: c }));
+                          setCountrySearch('');
+                          setCountryOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-sm transition-colors ${formData.country === c
+                          ? (isLightTheme ? 'bg-emerald-50 text-emerald-700 font-medium' : 'bg-emerald-500/10 text-emerald-400 font-medium')
+                          : (isLightTheme ? 'text-gray-700 hover:bg-gray-50' : 'text-gray-300 hover:bg-[#27272A]')
+                        }`}
+                      >
+                        {c}
+                      </button>
+                    ))}
                   </div>
-                  <input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="new-password"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-all duration-200"
-                    placeholder="Confirm your password"
-                    required
-                    disabled={loading}
-                  />
-                </div>
+                )}
               </div>
 
-              {/* Terms Agreement */}
-              <div className="flex items-start space-x-3">
-                <div className="flex items-center h-5 mt-0.5">
+              {/* Form Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
+                {/* Organization Name */}
+                <div>
+                  <label className={`block text-xs sm:text-sm mb-2 ${isLightTheme ? 'text-gray-600' : 'text-gray-400'}`}>
+                    Organization name
+                  </label>
                   <input
-                    id="terms"
-                    name="terms"
-                    type="checkbox"
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    required
+                    type="text"
+                    name="companyName"
+                    value={formData.companyName}
+                    onChange={handleChange}
+                    placeholder="Ex: Horizon Labs"
+                    disabled={loading}
+                    className={`w-full min-h-[44px] border text-sm rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 transition-colors focus:outline-none focus:border-[#00d4aa] focus:ring-1 focus:ring-[#00d4aa] ${isLightTheme ? 'bg-white border-emerald-700 text-[#0F172A] placeholder-gray-400' : 'bg-[#0d1117] border-[#30363d] text-white placeholder-gray-600'}`}
                   />
                 </div>
-                <label htmlFor="terms" className="block text-sm text-gray-700">
-                  I agree to the{' '}
-                  <a href="#" className="text-blue-600 hover:text-blue-500 transition-colors duration-200">
-                    Terms of Service
-                  </a>{' '}
-                  and{' '}
-                  <a href="#" className="text-blue-600 hover:text-blue-500 transition-colors duration-200">
-                    Privacy Policy
-                  </a>
-                </label>
+
+                {/* Manager Full Name */}
+                <div>
+                  <label className={`block text-xs sm:text-sm mb-2 ${isLightTheme ? 'text-gray-600' : 'text-gray-400'}`}>
+                    Manager full name
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    placeholder="Name and surname"
+                    disabled={loading}
+                    className={`w-full min-h-[44px] border text-sm rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 transition-colors focus:outline-none focus:border-[#00d4aa] focus:ring-1 focus:ring-[#00d4aa] ${isLightTheme ? 'bg-white border-emerald-700 text-[#0F172A] placeholder-gray-400' : 'bg-[#0d1117] border-[#30363d] text-white placeholder-gray-600'}`}
+                  />
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label className={`block text-xs sm:text-sm mb-2 ${isLightTheme ? 'text-gray-600' : 'text-gray-400'}`}>
+                    E-mail
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    placeholder="you@organization.com"
+                    disabled={loading}
+                    className={`w-full min-h-[44px] border text-sm rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 transition-colors focus:outline-none focus:border-[#00d4aa] focus:ring-1 focus:ring-[#00d4aa] ${isLightTheme ? 'bg-white border-emerald-700 text-[#0F172A] placeholder-gray-400' : 'bg-[#0d1117] border-[#30363d] text-white placeholder-gray-600'}`}
+                  />
+                </div>
+
+                {/* Password */}
+                <div>
+                  <label className={`block text-xs sm:text-sm mb-2 ${isLightTheme ? 'text-gray-600' : 'text-gray-400'}`}>
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    placeholder="*******"
+                    minLength="6"
+                    disabled={loading}
+                    className={`w-full min-h-[44px] border text-sm rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 transition-colors focus:outline-none focus:border-[#00d4aa] focus:ring-1 focus:ring-[#00d4aa] ${isLightTheme ? 'bg-white border-emerald-700 text-[#0F172A] placeholder-gray-400' : 'bg-[#0d1117] border-[#30363d] text-white placeholder-gray-600'}`}
+                  />
+                </div>
               </div>
 
               {/* Submit Button */}
-              <div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02] group"
-                >
-                  {loading ? (
-                    <div className="flex items-center justify-center space-x-2">
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      <span>Creating company account...</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center space-x-2">
-                      <FaBuilding className="w-4 h-4" />
-                      <span>Create Company Account</span>
-                      <FaArrowRight className="w-3 h-3 transform group-hover:translate-x-1 transition-transform duration-200" />
-                    </div>
-                  )}
-                </button>
-              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full min-h-[44px] bg-[#00d4aa] hover:bg-[#00b894] text-[#0d1117] font-semibold text-xs sm:text-sm uppercase tracking-wide py-2.5 sm:py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Creating account...' : 'Create Account'}
+              </button>
             </form>
-
-            {/* Security Info */}
-            <div className="mt-6 pt-6 border-t border-gray-200">
-              <div className="flex items-center justify-center space-x-2 text-gray-600">
-                <FaShieldAlt className="w-4 h-4 text-green-500" />
-                <span className="text-sm font-medium">Enterprise-grade security</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Demo Badge */}
-          <div className="mt-6 text-center" data-aos="fade-up" data-aos-delay="500">
-            <div className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-blue-100 text-blue-800 border border-blue-200/60 backdrop-blur-sm">
-              <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
-              Live Demo - Platform v2.0
-            </div>
           </div>
 
           {/* Login Link */}
-          <div className="mt-6 text-center" data-aos="fade-up" data-aos-delay="550">
-            <p className="text-sm text-gray-600">
-              Already have an account?{' '}
-              <Link 
-                to="/login" 
-                className="font-medium text-blue-600 hover:text-blue-500 transition-colors duration-200 hover:underline"
-              >
-                Sign in here
-              </Link>
-            </p>
-          </div>
+          <p className={`text-center text-xs sm:text-sm mt-4 sm:mt-6 ${isLightTheme ? 'text-emerald-700' : 'text-gray-500'}`}>
+            Already have an account?{' '}
+            <a href="/login" className="text-[#00d4aa] hover:underline">
+              Sign in
+            </a>
+          </p>
         </div>
-      </div>
-
-      {/* Add custom animations */}
-      <style jsx>{`
-        @keyframes blob {
-          0% { transform: translate(0px, 0px) scale(1); }
-          33% { transform: translate(30px, -50px) scale(1.1); }
-          66% { transform: translate(-20px, 20px) scale(0.9); }
-          100% { transform: translate(0px, 0px) scale(1); }
-        }
-        .animate-blob {
-          animation: blob 7s infinite;
-        }
-        .animation-delay-2000 {
-          animation-delay: 2s;
-        }
-        .animation-delay-4000 {
-          animation-delay: 4s;
-        }
-      `}</style>
+      </main>
     </div>
   );
 }

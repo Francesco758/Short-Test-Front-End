@@ -29,14 +29,17 @@ export default function AddUserModal({
   companyId,
   addUser,
   isOverUserManagement = false,
+  theme = "dark",
 }) {
+  const isLightTheme = theme === "light";
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
     role: "USER",
     function: "",
-    seniorityBand: ""
+    seniorityBand: "",
+    dateOfBirth: ""
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -51,7 +54,8 @@ export default function AddUserModal({
         password: "",
         role: "USER",
         function: "",
-        seniorityBand: ""
+        seniorityBand: "",
+        dateOfBirth: ""
       });
       setError(null);
       setShowPassword(false);
@@ -104,6 +108,7 @@ export default function AddUserModal({
         role: formData.role,
         function: formData.function || null,
         seniorityBand: formData.seniorityBand || null,
+        dateOfBirth: formData.dateOfBirth || null,
       };
 
       const created = await addUser(userData);
@@ -125,294 +130,194 @@ export default function AddUserModal({
 
   return (
     <div
-      className={`fixed inset-0 ${isOverUserManagement ? 'z-[110]' : 'z-50'} flex items-center justify-center p-4 animate-in fade-in duration-300`}
+      className={`fixed inset-0 ${isOverUserManagement ? 'z-[100]' : 'z-50'} flex items-center justify-center p-4`}
       aria-modal="true"
       role="dialog"
       aria-labelledby="add-user-title"
     >
-      {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/90 backdrop-blur-md transition-opacity duration-300"
+        className={`absolute inset-0 ${isLightTheme ? 'bg-black/60' : 'bg-black/70'}`}
         onClick={handleClose}
       />
+      <div className={`relative w-full max-w-xl max-h-[90vh] rounded-xl border ${isLightTheme ? 'border-emerald-700 bg-white shadow-[0_0_0_1px_#047857]' : 'border-emerald-500 bg-[#09090B] shadow-[0_0_0_1px_#047857]'} flex flex-col`}>
+        <div className={`flex items-center justify-between px-6 py-5 border-b ${isLightTheme ? 'border-gray-200' : 'border-[#1e2736]'} flex-shrink-0`}>
+          <h2 id="add-user-title" className={`text-lg font-semibold ${isLightTheme ? 'text-gray-900' : 'text-white'}`}>Add user</h2>
+          <button
+            onClick={handleClose}
+            className={`px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest rounded-md ${isLightTheme ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-[#1e2736] text-gray-300 hover:bg-[#2a364a]'}`}
+          >
+            Chiudi
+          </button>
+        </div>
 
-      {/* Modal Card */}
-      <div className="relative w-full max-w-4xl max-h-[90vh] rounded-[40px] shadow-2xl overflow-hidden border border-gray-800 bg-[#0f172a] flex flex-col">
-
-        <div className="grid grid-cols-1 md:grid-cols-12 flex-1 overflow-hidden">
-          {/* Decorative left panel (md+) */}
-          <div className="hidden md:flex md:col-span-4 items-center justify-center bg-[#1e293b] p-10 border-r border-gray-800">
-            <div className="text-center">
-              <div className="mx-auto mb-6 w-24 h-24 rounded-3xl bg-[#0f172a] border border-gray-700 flex items-center justify-center shadow-inner">
-                <FaUser className="w-10 h-10 text-[#00f2aa]" />
-              </div>
-              <h3 className="text-white text-2xl font-black uppercase tracking-tighter">Add Member</h3>
-              <p className="text-gray-500 mt-4 text-xs font-bold uppercase tracking-widest leading-relaxed">
-                Onboard new talent to your team cockpit.
-              </p>
-
-              {/* Mini quick info */}
-              <div className="mt-10 space-y-6 text-left">
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-[#0f172a] border border-gray-800 flex items-center justify-center">
-                    <FaUserShield className="w-4 h-4 text-[#00f2aa]" />
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-black text-white uppercase tracking-widest">Secure Access</div>
-                    <div className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-1 opacity-70">Role-based permissions enabled.</div>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-[#0f172a] border border-gray-800 flex items-center justify-center">
-                    <FaEnvelope className="w-4 h-4 text-[#00f2aa]" />
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-black text-white uppercase tracking-widest">Instant Invite</div>
-                    <div className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-1 opacity-70">Automated welcome emails.</div>
-                  </div>
-                </div>
-              </div>
-            </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-5 flex-1 overflow-y-auto">
+          <style>{`
+            ${isLightTheme ? `
+            input, select, textarea { background-color: #ffffff !important; color: #111827 !important; border-color: #d1d5db !important; }
+            ::placeholder { color: #9ca3af !important; }
+            select option { background-color: #ffffff; color: #111827; }
+            input:-webkit-autofill,
+            select:-webkit-autofill,
+            textarea:-webkit-autofill {
+              -webkit-box-shadow: 0 0 0px 1000px #ffffff inset !important;
+              box-shadow: 0 0 0px 1000px #ffffff inset !important;
+              -webkit-text-fill-color: #111827 !important;
+              caret-color: #111827;
+            }` : `
+            input, select, textarea { background-color: #0f1623 !important; color: #e5e7eb !important; }
+            ::placeholder { color: #6b7280 !important; }
+            select option { background-color: #0f1623; color: #e5e7eb; }
+            input:-webkit-autofill,
+            select:-webkit-autofill,
+            textarea:-webkit-autofill {
+              -webkit-box-shadow: 0 0 0px 1000px #0f1623 inset !important;
+              box-shadow: 0 0 0px 1000px #0f1623 inset !important;
+              -webkit-text-fill-color: #e5e7eb !important;
+              caret-color: #e5e7eb;
+            }`}
+          `}</style>
+          <div>
+            <label className={`block text-xs font-medium ${isLightTheme ? 'text-gray-600' : 'text-gray-500'} mb-2`}>Name / surname or pseudonym</label>
+            <input
+              name="name"
+              type="text"
+              value={formData.name}
+              onChange={handleChange}
+              placeholder="e.g. Alex Rossi"
+              disabled={loading}
+              className={`w-full px-4 py-3 ${isLightTheme ? 'bg-white border-gray-300 text-gray-900 placeholder-gray-400' : 'bg-[#0f1623] border-[#1e2736] text-gray-200 placeholder-gray-500'} border rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 appearance-none`}
+              required
+            />
           </div>
 
-          {/* Form area */}
-          <div className="col-span-12 md:col-span-8 bg-[#0f172a] flex flex-col overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between px-10 py-8 border-b border-gray-800 bg-[#0f172a]/80 backdrop-blur-xl">
-              <div className="flex items-center gap-6">
-                <div className="w-12 h-12 bg-[#1e293b] border border-gray-700 rounded-2xl flex items-center justify-center shadow-inner">
-                  <FaUserShield className="w-6 h-6 text-[#00f2aa]" />
-                </div>
-                <div>
-                  <h2 id="add-user-title" className="text-2xl font-black text-white uppercase tracking-tighter">
-                    User Profile
-                  </h2>
-                  <p className="text-gray-500 text-[10px] font-bold tracking-[0.2em] uppercase mt-1 text-xs">Configure identity and system access</p>
-                </div>
-              </div>
+          <div>
+            <label className={`block text-xs font-medium ${isLightTheme ? 'text-gray-600' : 'text-gray-500'} mb-2`}>System role</label>
+            <select
+              name="role"
+              value={formData.role}
+              onChange={handleChange}
+              disabled={loading}
+              className={`w-full px-4 py-3 ${isLightTheme ? 'bg-white border-gray-300 text-gray-900' : 'bg-[#0f1623] border-[#1e2736] text-gray-200'} border rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 appearance-none`}
+            >
+              <option value="USER">user</option>
+              <option value="COMPANY_ADMIN">company admin</option>
+            </select>
+          </div>
 
-              <button
-                onClick={handleClose}
-                aria-label="Close"
-                className="w-10 h-10 rounded-full border border-gray-800 flex items-center justify-center text-gray-500 hover:text-white hover:border-gray-600 transition-all group"
-              >
-                <FaXmark className="w-5 h-5 group-hover:scale-110 transition-transform" />
-              </button>
-            </div>
+          <div>
+            <label className={`block text-xs font-medium ${isLightTheme ? 'text-gray-600' : 'text-gray-500'} mb-2`}>Function</label>
+            <select
+              name="function"
+              value={formData.function}
+              onChange={handleChange}
+              disabled={loading}
+              className={`w-full px-4 py-3 ${isLightTheme ? 'bg-white border-gray-300 text-gray-900' : 'bg-[#0f1623] border-[#1e2736] text-gray-200'} border rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 appearance-none`}
+            >
+              <option value="">Select</option>
+              <option value="Marketing">Marketing</option>
+              <option value="Sales">Sales</option>
+              <option value="HR">HR</option>
+              <option value="Engineering">Engineering</option>
+              <option value="Operations">Operations</option>
+              <option value="Finance">Finance</option>
+              <option value="Management">Management</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
 
-            {/* Form */}
-            <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
-              <form onSubmit={handleSubmit} className="space-y-8">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                  {/* Name */}
-                  <div className="space-y-3">
-                    <label htmlFor="name" className="block text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">
-                      Full name *
-                    </label>
-                    <div className="relative group">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <FaUser className="h-4 w-4 text-gray-600 group-focus-within:text-[#00f2aa] transition-colors" />
-                      </div>
-                      <input
-                        id="name"
-                        name="name"
-                        type="text"
-                        autoComplete="name"
-                        value={formData.name}
-                        onChange={handleChange}
-                        className="block w-full pl-12 pr-4 py-4 bg-[#1e293b] border border-gray-800 rounded-2xl text-white placeholder-gray-600 focus:ring-2 focus:ring-[#00f2aa]/20 focus:border-[#00f2aa] transition-all font-bold text-sm"
-                        placeholder="JOHN DOE"
-                        required
-                        disabled={loading}
-                      />
-                    </div>
-                  </div>
+          <div>
+            <label className={`block text-xs font-medium ${isLightTheme ? 'text-gray-600' : 'text-gray-500'} mb-2`}>Email</label>
+            <input
+              name="email"
+              type="email"
+              value={formData.email}
+              onChange={handleChange}
+              placeholder="user@company.com"
+              disabled={loading}
+              className={`w-full px-4 py-3 ${isLightTheme ? 'bg-white border-gray-300 text-gray-900 placeholder-gray-400' : 'bg-[#0f1623] border-[#1e2736] text-gray-200 placeholder-gray-500'} border rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 appearance-none`}
+              required
+            />
+          </div>
 
-                  {/* Role */}
-                  <div className="space-y-3">
-                    <label htmlFor="role" className="block text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">
-                      System Role *
-                    </label>
-                    <div className="relative group">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <FaUserShield className="h-4 w-4 text-gray-600 group-focus-within:text-[#00f2aa] transition-colors" />
-                      </div>
-                      <select
-                        id="role"
-                        name="role"
-                        value={formData.role}
-                        onChange={handleChange}
-                        className="block w-full pl-12 pr-4 py-4 bg-[#1e293b] border border-gray-800 rounded-2xl text-white focus:ring-2 focus:ring-[#00f2aa]/20 focus:border-[#00f2aa] transition-all font-bold text-sm appearance-none"
-                        disabled={loading}
-                      >
-                        <option value="USER">Standard User</option>
-                        <option value="STUDENT">Student</option>
-                        <option value="TEACHER">Teacher</option>
-                        <option value="COMPANY_ADMIN">Company Administrator</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Email */}
-                <div className="space-y-3">
-                  <label htmlFor="email" className="block text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">
-                    Email address *
-                  </label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <FaEnvelope className="h-4 w-4 text-gray-600 group-focus-within:text-[#00f2aa] transition-colors" />
-                    </div>
-                    <input
-                      id="email"
-                      name="email"
-                      type="email"
-                      autoComplete="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      className="block w-full pl-12 pr-4 py-4 bg-[#1e293b] border border-gray-800 rounded-2xl text-white placeholder-gray-600 focus:ring-2 focus:ring-[#00f2aa]/20 focus:border-[#00f2aa] transition-all font-bold text-sm"
-                      placeholder="USER@COMPANY.COM"
-                      required
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
-
-                {/* Function and Seniority */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                  <div className="space-y-3">
-                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">Department</label>
-                    <select
-                      name="function"
-                      value={formData.function}
-                      onChange={handleChange}
-                      className="block w-full px-5 py-4 bg-[#1e293b] border border-gray-800 rounded-2xl text-white focus:ring-2 focus:ring-[#00f2aa]/20 focus:border-[#00f2aa] transition-all font-bold text-sm appearance-none"
-                      disabled={loading}
-                    >
-                      <option value="">Select Function</option>
-                      <option value="Marketing">Marketing</option>
-                      <option value="Sales">Sales</option>
-                      <option value="HR">HR</option>
-                      <option value="Engineering">Engineering</option>
-                      <option value="Operations">Operations</option>
-                      <option value="Finance">Finance</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
-                  <div className="space-y-3">
-                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">Seniority Band</label>
-                    <select
-                      name="seniorityBand"
-                      value={formData.seniorityBand}
-                      onChange={handleChange}
-                      className="block w-full px-5 py-4 bg-[#1e293b] border border-gray-800 rounded-2xl text-white focus:ring-2 focus:ring-[#00f2aa]/20 focus:border-[#00f2aa] transition-all font-bold text-sm appearance-none"
-                      disabled={loading}
-                    >
-                      <option value="">Select Level</option>
-                      <option value="Intern">Intern</option>
-                      <option value="Junior">Junior</option>
-                      <option value="Mid">Mid</option>
-                      <option value="Senior">Senior</option>
-                      <option value="Lead">Lead</option>
-                      <option value="Manager">Manager</option>
-                      <option value="Director">Director</option>
-                      <option value="VP">VP</option>
-                      <option value="CxO">CxO</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Password */}
-                <div className="space-y-3">
-                  <label htmlFor="password" className="block text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">
-                    System Password *
-                  </label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <FaLock className="h-4 w-4 text-gray-600 group-focus-within:text-[#00f2aa] transition-colors" />
-                    </div>
-                    <input
-                      id="password"
-                      name="password"
-                      type={showPassword ? "text" : "password"}
-                      autoComplete="new-password"
-                      value={formData.password}
-                      onChange={handleChange}
-                      className="block w-full pl-12 pr-14 py-4 bg-[#1e293b] border border-gray-800 rounded-2xl text-white placeholder-gray-600 focus:ring-2 focus:ring-[#00f2aa]/20 focus:border-[#00f2aa] transition-all font-bold text-sm"
-                      placeholder="MIN 6 CHARACTERS"
-                      required
-                      disabled={loading}
-                      minLength="6"
-                    />
-                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="text-gray-500 hover:text-[#00f2aa] transition-colors"
-                        aria-label={showPassword ? "Hide password" : "Show password"}
-                      >
-                        {showPassword ? <FaEyeSlash className="w-5 h-5" /> : <FaEye className="w-5 h-5" />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Error message (card) */}
-                {error && (
-                  <div className="rounded-2xl border border-red-900/50 bg-red-900/20 p-5 animate-in slide-in-from-top-2 duration-300">
-                    <div className="flex items-start gap-4">
-                      <div className="text-red-500">
-                        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                          <path strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <div>
-                        <div className="text-sm font-black text-red-400 uppercase tracking-widest">{error}</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </form>
-            </div>
-
-            {/* Footer actions */}
-            <div className="px-10 py-8 border-t border-gray-800 bg-[#0f172a]/80 backdrop-blur-xl flex items-center justify-between">
-              <button
-                type="button"
-                onClick={handleClose}
+          <div>
+            <label className={`block text-xs font-medium ${isLightTheme ? 'text-gray-600' : 'text-gray-500'} mb-2`}>Password</label>
+            <div className="relative">
+              <input
+                name="password"
+                type={showPassword ? "text" : "password"}
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Create a strong password"
                 disabled={loading}
-                className="px-8 py-3 border border-gray-800 text-gray-500 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-[#1e293b] hover:text-white transition-all disabled:opacity-50"
-              >
-                Cancel
-              </button>
-
+                className={`w-full px-4 py-3 ${isLightTheme ? 'bg-white border-gray-300 text-gray-900 placeholder-gray-400' : 'bg-[#0f1623] border-[#1e2736] text-gray-200 placeholder-gray-500'} border rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 pr-12 appearance-none`}
+                required
+                minLength={6}
+              />
               <button
                 type="button"
-                onClick={handleSubmit}
-                disabled={
-                  loading ||
-                  !formData.name.trim() ||
-                  !formData.email.trim() ||
-                  !formData.password
-                }
-                className="px-10 py-3 bg-[#00f2aa] text-[#0f172a] text-xs font-black uppercase tracking-widest rounded-xl hover:bg-[#00d496] transition-all shadow-[0_0_20px_rgba(0,242,170,0.2)] flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => setShowPassword(!showPassword)}
+                className={`absolute right-3 top-1/2 -translate-y-1/2 ${isLightTheme ? 'text-gray-500 hover:text-gray-700' : 'text-gray-400 hover:text-gray-200'}`}
               >
-                {loading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-[#0f172a] border-t-transparent rounded-full animate-spin"></div>
-                    <span>Processing...</span>
-                  </>
-                ) : (
-                  <>
-                    <FaUser className="w-4 h-4" />
-                    <span>Deploy User</span>
-                  </>
-                )}
+                {showPassword ? <FaEyeSlash /> : <FaEye />}
               </button>
             </div>
           </div>
-        </div> {/* end grid */}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className={`block text-xs font-medium ${isLightTheme ? 'text-gray-600' : 'text-gray-500'} mb-2`}>Date of Birth</label>
+              <input
+                name="dateOfBirth"
+                type="date"
+                value={formData.dateOfBirth}
+                onChange={handleChange}
+                disabled={loading}
+                className={`w-full px-4 py-3 ${isLightTheme ? 'bg-white border-gray-300 text-gray-900' : 'bg-[#0f1623] border-[#1e2736] text-gray-200'} border rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 appearance-none`}
+              />
+            </div>
+            <div>
+              <label className={`block text-xs font-medium ${isLightTheme ? 'text-gray-600' : 'text-gray-500'} mb-2`}>Seniority</label>
+              <select
+                name="seniorityBand"
+                value={formData.seniorityBand}
+                onChange={handleChange}
+                disabled={loading}
+                className={`w-full px-4 py-3 ${isLightTheme ? 'bg-white border-gray-300 text-gray-900' : 'bg-[#0f1623] border-[#1e2736] text-gray-200'} border rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 appearance-none`}
+              >
+                <option value="">Select</option>
+                <option value="Intern">Intern</option>
+                <option value="Junior">Junior</option>
+                <option value="Mid">Mid</option>
+                <option value="Senior">Senior</option>
+                <option value="Lead">Lead</option>
+                <option value="Manager">Manager</option>
+                <option value="Director">Director</option>
+                <option value="VP">VP</option>
+                <option value="CxO">CxO</option>
+              </select>
+            </div>
+          </div>
+
+          {error && (
+            <div className={`border px-3 py-2 rounded-md text-sm ${isLightTheme ? 'border-red-200 bg-red-50 text-red-600' : 'border-red-500/30 bg-red-500/10 text-red-300'}`}>
+              {error}
+            </div>
+          )}
+        </form>
+        <div className={`px-6 py-4 border-t flex-shrink-0 ${isLightTheme ? 'border-gray-200 bg-gray-50' : 'border-[#1e2736] bg-[#0f1623]'}`}>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={loading || !formData.name.trim() || !formData.email.trim() || !formData.password}
+            className={`w-full px-5 py-3 font-bold uppercase tracking-widest rounded-md ${
+              (loading || !formData.name.trim() || !formData.email.trim() || !formData.password)
+                ? (isLightTheme ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-[#1f2937] text-gray-500 cursor-not-allowed')
+                : (isLightTheme ? 'bg-[#17be8e] text-white hover:bg-[#15a87d]' : 'bg-emerald-500 text-[#0a0e14] hover:bg-emerald-600')
+            }`}
+          >
+            Save user
+          </button>
+        </div>
       </div>
     </div>
   );

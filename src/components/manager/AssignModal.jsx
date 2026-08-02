@@ -6,7 +6,6 @@ import {
   FaCalendarDays,
   FaEnvelope,
   FaCheck,
-  FaRocket,
 } from "react-icons/fa6";
 
 /**
@@ -29,7 +28,6 @@ export default function AssignModal({
   tests = [],
   assignTestToUsers,
   companyId,
-  isOverUserManagement = false,
 }) {
   const [selectedTestIds, setSelectedTestIds] = useState([]);
   const [scheduleNow, setScheduleNow] = useState(true);
@@ -111,50 +109,72 @@ export default function AssignModal({
 
   return (
     <div
-      className={`fixed inset-0 ${isOverUserManagement ? 'z-[110]' : 'z-50'} flex items-center justify-center p-4 animate-in fade-in duration-300`}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
       aria-modal="true"
       role="dialog"
       aria-labelledby="assign-modal-title"
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/90 backdrop-blur-md transition-opacity duration-300"
+        className="absolute inset-0 bg-black/60 transition-opacity duration-300"
         onClick={handleClose}
       />
 
       {/* Modal container */}
-      <div className="relative w-full max-w-4xl rounded-[40px] shadow-2xl overflow-hidden bg-[#0f172a] border border-gray-800 flex flex-col max-h-[90vh] min-h-0">
-        <div className="grid grid-cols-1 md:grid-cols-12 w-full min-h-0 flex-1">
+      <div className="relative w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden bg-white flex max-h-[90vh] min-h-0">
+        {/* Custom scrollbar styles (applies to elements with className "custom-scrollbar") */}
+        <style>{`
+          /* Ensure stable gutter so scrollbar doesn't shift layout */
+          .custom-scrollbar { scrollbar-gutter: stable; -webkit-overflow-scrolling: touch; }
+
+          /* Firefox */
+          .custom-scrollbar { scrollbar-width: thin; scrollbar-color: rgba(34,197,94,0.9) rgba(229,231,235,0.8); }
+
+          /* Webkit browsers (Chrome, Edge, Safari) */
+          .custom-scrollbar::-webkit-scrollbar { width: 12px; height: 12px; }
+          .custom-scrollbar::-webkit-scrollbar-track { background: rgba(229,231,235,0.9); border-radius: 9999px; }
+          .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, rgba(34,197,94,0.95), rgba(16,185,129,0.9));
+            border-radius: 9999px;
+            border: 3px solid rgba(0,0,0,0);
+            background-clip: padding-box;
+          }
+          .custom-scrollbar::-webkit-scrollbar-thumb:hover { filter: brightness(0.95); }
+
+          /* Make track slightly visible even when not hovering (helps users notice scrollbar) */
+          .custom-scrollbar { --track-bg: rgba(229,231,235,0.9); --thumb-opacity: 0.95; }
+        `}</style>
+
+        <div className="grid grid-cols-1 md:grid-cols-12 w-full min-h-0">
           {/* Decorative left panel (md+) */}
-          <div className="hidden md:flex md:col-span-4 items-center justify-center bg-gradient-to-b from-[#1e293b] to-[#0f172a] border-r border-gray-800 p-8 min-h-0 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-[#00f2aa]/5 rounded-full -mr-32 -mt-32 blur-3xl group-hover:bg-[#00f2aa]/10 transition-all"></div>
-            <div className="text-center max-w-xs relative z-10">
-              <div className="mx-auto mb-6 w-20 h-20 rounded-3xl bg-[#0f172a] border border-gray-700 flex items-center justify-center shadow-2xl">
-                <FaClipboardCheck className="w-10 h-10 text-[#00f2aa]" />
+          <div className="hidden md:flex md:col-span-4 items-center justify-center bg-gradient-to-b from-emerald-600 via-green-600 to-emerald-500 p-6 min-h-0">
+            <div className="text-center max-w-xs">
+              <div className="mx-auto mb-4 w-20 h-20 rounded-3xl bg-white/12 flex items-center justify-center shadow-lg">
+                <FaClipboardCheck className="w-10 h-10 text-white" />
               </div>
-              <h3 className="text-white text-xl font-black uppercase tracking-widest mb-4">Assign Tests</h3>
-              <p className="text-gray-500 font-bold text-xs uppercase tracking-widest leading-relaxed">
-                Assign test(s) to the selected user and notify them instantly.
+              <h3 className="text-white text-lg font-semibold">Assign Tests</h3>
+              <p className="text-emerald-100 mt-2 text-sm">
+                Quickly assign test(s) to the selected user and optionally notify them by email.
               </p>
 
-              <div className="mt-10 space-y-6 text-left">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-[#0f172a] border border-gray-800 flex items-center justify-center flex-shrink-0">
-                    <FaCalendarDays className="w-4 h-4 text-[#00f2aa]" />
+              <div className="mt-6 space-y-3 text-left text-sm text-emerald-100">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center">
+                    <FaCalendarDays className="w-4 h-4" />
                   </div>
                   <div>
-                    <div className="text-[10px] font-black text-white uppercase tracking-widest mb-1">Scheduling</div>
-                    <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Assign immediately or schedule.</div>
+                    <div className="font-medium">Flexible scheduling</div>
+                    <div className="opacity-90">Assign immediately or schedule for later.</div>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-[#0f172a] border border-gray-800 flex items-center justify-center flex-shrink-0">
-                    <FaEnvelope className="w-4 h-4 text-[#00f2aa]" />
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center">
+                    <FaEnvelope className="w-4 h-4" />
                   </div>
                   <div>
-                    <div className="text-[10px] font-black text-white uppercase tracking-widest mb-1">Notifications</div>
-                    <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Auto-notify users via email.</div>
+                    <div className="font-medium">Email notifications</div>
+                    <div className="opacity-90">Notify users automatically with details.</div>
                   </div>
                 </div>
               </div>
@@ -164,14 +184,14 @@ export default function AssignModal({
           {/* Main form area */}
           <div className="col-span-12 md:col-span-8 flex flex-col min-h-0">
             {/* Header */}
-            <div className="flex-shrink-0 px-10 py-8 border-b border-gray-800 flex items-center justify-between bg-[#0f172a]/80 backdrop-blur-xl">
+            <div className="flex-shrink-0 px-6 py-5 border-b flex items-center justify-between">
               <div>
-                <h2 id="assign-modal-title" className="text-2xl font-black text-white uppercase tracking-tighter">
-                  Assign Tests
+                <h2 id="assign-modal-title" className="text-lg font-semibold text-gray-900">
+                  Assign Tests to User
                 </h2>
-                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">
-                  Assigning to{" "}
-                  <span className="text-[#00f2aa]">
+                <p className="text-sm text-gray-500 mt-1">
+                  Assigning tests to{" "}
+                  <span className="font-medium text-indigo-600">
                     {singleUserId ? "1 user" : "no user"}
                   </span>
                 </p>
@@ -181,7 +201,7 @@ export default function AssignModal({
                 <button
                   onClick={handleClose}
                   aria-label="Close"
-                  className="w-10 h-10 rounded-full border border-gray-800 flex items-center justify-center text-gray-500 hover:text-white transition-all"
+                  className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition"
                 >
                   <FaXmark className="w-5 h-5" />
                 </button>
@@ -189,153 +209,215 @@ export default function AssignModal({
             </div>
 
             {/* Scrollable content */}
-            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-10 space-y-10 custom-scrollbar min-h-0 bg-[#0f172a]">
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar min-h-0">
               {/* Tests Selection */}
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-black text-white uppercase tracking-widest">
-                    Select Tests <span className="text-gray-500 ml-2">({selectedTestIds.length} / {tests.length})</span>
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Select Tests <span className="text-gray-400 text-xs">({selectedTestIds.length} of {tests.length})</span>
                   </label>
                   <button
                     type="button"
                     onClick={toggleAllTests}
-                    className="text-[10px] font-black text-[#00f2aa] uppercase tracking-widest hover:text-[#00d496] transition-colors"
+                    className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
                   >
                     {selectedTestIds.length === tests.length ? "Deselect All" : "Select All"}
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 max-h-[300px] overflow-y-auto pr-4 custom-scrollbar">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-64 overflow-y-auto p-1 custom-scrollbar min-h-0">
                   {tests.map((test) => (
                     <label
                       key={test.id}
-                      className={`flex items-center gap-6 p-5 border-2 rounded-2xl cursor-pointer transition-all duration-300 ${
+                      className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
                         selectedTestIds.includes(test.id)
-                          ? "border-[#00f2aa] bg-[#00f2aa]/5 shadow-[0_0_20px_rgba(0,242,170,0.05)]"
-                          : "border-gray-800 bg-[#1e293b] hover:border-gray-700"
+                          ? "border-indigo-500 bg-indigo-50/50 shadow-sm"
+                          : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                       }`}
                     >
-                      <div className={`w-5 h-5 border-2 rounded-md flex items-center justify-center transition-colors ${
-                        selectedTestIds.includes(test.id) ? 'bg-[#00f2aa] border-[#00f2aa]' : 'border-gray-600'
-                      }`}>
-                        <input
-                          type="checkbox"
-                          checked={selectedTestIds.includes(test.id)}
-                          onChange={() => toggleTest(test.id)}
-                          className="hidden"
-                        />
-                        {selectedTestIds.includes(test.id) && <FaCheck className="text-[#0f172a] w-2.5 h-2.5" />}
-                      </div>
+                      <input
+                        type="checkbox"
+                        checked={selectedTestIds.includes(test.id)}
+                        onChange={() => toggleTest(test.id)}
+                        className="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                      />
                       <div className="flex-1 min-w-0">
-                        <div className={`font-bold text-sm uppercase tracking-widest ${selectedTestIds.includes(test.id) ? 'text-[#00f2aa]' : 'text-gray-300'}`}>
-                          {test.title}
+                        <div className="font-medium text-gray-900 text-sm flex items-center gap-2">
+                          <span>{test.title}</span>
+                          {selectedTestIds.includes(test.id) && (
+                            <span className="text-xs text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">Selected</span>
+                          )}
                         </div>
+                        {test.description && (
+                          <div className="text-xs text-gray-500 mt-1 truncate">{test.description}</div>
+                        )}
                       </div>
                     </label>
                   ))}
+                  {tests.length === 0 && (
+                    <div className="text-sm text-gray-500 p-4">No tests available.</div>
+                  )}
                 </div>
               </div>
 
-              {/* Scheduling & Options */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-4">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">Schedule Assignment</label>
-                  <div className="flex flex-col gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setScheduleNow(true)}
-                      className={`px-6 py-3 rounded-xl border-2 font-black text-[10px] uppercase tracking-widest transition-all ${
-                        scheduleNow 
-                          ? 'border-[#00f2aa] bg-[#00f2aa]/10 text-[#00f2aa]' 
-                          : 'border-gray-800 bg-[#1e293b] text-gray-500'
-                      }`}
-                    >
-                      Assign Now
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setScheduleNow(false)}
-                      className={`px-6 py-3 rounded-xl border-2 font-black text-[10px] uppercase tracking-widest transition-all ${
-                        !scheduleNow 
-                          ? 'border-[#00f2aa] bg-[#00f2aa]/10 text-[#00f2aa]' 
-                          : 'border-gray-800 bg-[#1e293b] text-gray-500'
-                      }`}
-                    >
-                      Schedule Later
-                    </button>
-                  </div>
-                </div>
-
-                {!scheduleNow && (
-                  <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-300">
-                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">Schedule Date</label>
-                    <input
-                      type="datetime-local"
-                      value={scheduleAt}
-                      onChange={(e) => setScheduleAt(e.target.value)}
-                      className="w-full bg-[#1e293b] border-2 border-gray-800 rounded-xl px-6 py-3 text-white focus:outline-none focus:border-[#00f2aa] transition-all text-sm font-bold"
-                    />
-                  </div>
-                )}
+              {/* Schedule Options */}
+              <div className="border-t border-gray-100 pt-6">
+                <h3 className="text-sm font-medium text-gray-700 mb-4">Schedule</h3>
 
                 <div className="space-y-4">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">Notifications</label>
-                  <button
-                    type="button"
-                    onClick={() => setNotify(!notify)}
-                    className={`w-full flex items-center justify-between px-6 py-3 rounded-xl border-2 font-black text-[10px] uppercase tracking-widest transition-all ${
-                      notify 
-                        ? 'border-[#00f2aa] bg-[#00f2aa]/10 text-[#00f2aa]' 
-                        : 'border-gray-800 bg-[#1e293b] text-gray-500'
-                    }`}
-                  >
-                    <span>Email Notification</span>
-                    <div className={`w-10 h-5 rounded-full relative transition-colors ${notify ? 'bg-[#00f2aa]' : 'bg-gray-700'}`}>
-                      <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${notify ? 'right-1' : 'left-1'}`}></div>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                    <label className="flex items-center gap-3 flex-1">
+                      <input
+                        type="radio"
+                        checked={scheduleNow}
+                        onChange={() => setScheduleNow(true)}
+                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                      />
+                      <div>
+                        <div className="font-medium text-gray-900">Assign Immediately</div>
+                        <div className="text-sm text-gray-500">Tests will be assigned right away</div>
+                      </div>
+                    </label>
+
+                    <label className="flex items-center gap-3 flex-1">
+                      <input
+                        type="radio"
+                        checked={!scheduleNow}
+                        onChange={() => setScheduleNow(false)}
+                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                      />
+                      <div>
+                        <div className="font-medium text-gray-900">Schedule for Later</div>
+                        <div className="text-sm text-gray-500">Choose specific date and time</div>
+                      </div>
+                    </label>
+                  </div>
+
+                  {!scheduleNow && (
+                    <div className="pl-7">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Schedule Date & Time</label>
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <div className="absolute left-3 top-3 text-gray-400 pointer-events-none">
+                            <FaCalendarDays />
+                          </div>
+                          <input
+                            type="datetime-local"
+                            value={scheduleAt}
+                            onChange={(e) => setScheduleAt(e.target.value)}
+                            min={new Date().toISOString().slice(0, 16)}
+                            className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 transition"
+                            required
+                          />
+                        </div>
+                      </div>
                     </div>
-                  </button>
+                  )}
                 </div>
               </div>
+
+              {/* Deadline */}
+              <div className="border-t border-gray-100 pt-6">
+                <h3 className="text-sm font-medium text-gray-700 mb-2">Deadline (optional)</h3>
+                <div className="relative max-w-sm">
+                  <div className="absolute left-3 top-3 text-gray-400 pointer-events-none">
+                    <FaCalendarDays />
+                  </div>
+                  <input
+                    type="date"
+                    value={deadline}
+                    onChange={(e) => setDeadline(e.target.value)}
+                    min={new Date().toISOString().slice(0, 10)}
+                    className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 transition"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-2">Users will see an upcoming deadline badge until completion.</p>
+              </div>
+
+              {/* Notification Option */}
+              <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
+                <input
+                  id="notify-users"
+                  type="checkbox"
+                  checked={notify}
+                  onChange={(e) => setNotify(e.target.checked)}
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                />
+                <label htmlFor="notify-users" className="flex-1">
+                  <div className="font-medium text-gray-900 text-sm">Send email notification</div>
+                  <div className="text-sm text-gray-500">
+                    User will receive an email with login credentials and test details
+                    {notify && <span className="text-green-600 font-semibold"> ✓ Email will be sent</span>}
+                  </div>
+                </label>
+              </div>
+
+              {/* Result Messages */}
+              {result?.error && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+                  <div className="flex items-center gap-2 text-red-800">
+                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-sm font-medium">{result.error}</span>
+                  </div>
+                </div>
+              )}
+
+              {result?.success && (
+                <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
+                  <div className="flex items-center gap-2 text-green-800">
+                    <FaCheck className="w-5 h-5 flex-shrink-0" />
+                    <div>
+                      <div className="text-sm font-medium">{result.success.message}</div>
+                      {result.success.emailSent && (
+                        <div className="text-xs text-green-700 mt-1">
+                          ✓ Email with login credentials has been sent to the user
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* bottom spacer so last content isn't hidden behind footer */}
+              <div className="h-4" />
             </form>
 
-            {/* Footer */}
-            <div className="px-10 py-8 border-t border-gray-800 bg-[#0f172a]/80 backdrop-blur-xl flex flex-col items-center gap-6">
-              {result?.error && (
-                <div className="text-red-500 font-black text-[10px] uppercase tracking-widest bg-red-500/10 px-6 py-3 rounded-full border border-red-500/20 w-full text-center">
-                  {result.error}
-                </div>
-              )}
-              {result?.success && (
-                <div className="text-[#00f2aa] font-black text-[10px] uppercase tracking-widest bg-[#00f2aa]/10 px-6 py-3 rounded-full border border-[#00f2aa]/20 w-full text-center">
-                  {result.success.message}
-                </div>
-              )}
+            {/* Footer (fixed) */}
+            <div className="flex-shrink-0 px-6 py-4 border-t bg-white">
+              <div className="flex flex-col-reverse sm:flex-row gap-3">
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  disabled={loading}
+                  className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  Cancel
+                </button>
 
-              <button
-                onClick={handleSubmit}
-                disabled={selectedTestIds.length === 0 || loading}
-                className={`w-full max-w-lg py-4 rounded-2xl text-[#0f172a] font-black text-lg uppercase tracking-[0.2em] transition-all duration-500 shadow-[0_0_30px_rgba(0,242,170,0.1)] flex items-center justify-center gap-4 group ${
-                  (selectedTestIds.length === 0 || loading)
-                    ? 'bg-gray-800 text-gray-600 cursor-not-allowed shadow-none'
-                    : 'bg-[#00f2aa] hover:bg-[#00d496] hover:scale-[1.02] hover:shadow-[0_0_40px_rgba(0,242,170,0.3)]'
-                }`}
-              >
-                {loading ? (
-                  <div className="w-6 h-6 border-4 border-[#0f172a] border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <>
-                    Assign Selected Tests
-                    <FaRocket className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-                  </>
-                )}
-              </button>
-
-              <button
-                onClick={handleClose}
-                className="text-gray-500 font-black text-[8px] uppercase tracking-[0.4em] hover:text-white transition-colors"
-              >
-                CANCEL AND RETURN
-              </button>
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={loading || selectedTestIds.length === 0}
+                  className="flex-1 px-6 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition shadow inline-flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Assigning...
+                    </>
+                  ) : (
+                    <>
+                      <FaClipboardCheck className="w-4 h-4" />
+                      Assign {selectedTestIds.length} Test{selectedTestIds.length !== 1 ? "s" : ""}
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

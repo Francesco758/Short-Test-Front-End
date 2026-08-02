@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
-export default function KPIAnimatedNumber({ value = 0 }) {
+export default function KPIAnimatedNumber({ value = 0, theme = "dark" }) {
+  const isLightTheme = theme === "light";
   const [n, setN] = useState(0);
   useEffect(() => {
     let raf;
@@ -13,5 +14,5 @@ export default function KPIAnimatedNumber({ value = 0 }) {
     tick();
     return () => cancelAnimationFrame(raf);
   }, [value]);
-  return <div className="text-4xl font-bold">{n}%</div>;
+  return <div className={`text-4xl font-bold ${isLightTheme ? 'text-[#0F172A]' : 'text-emerald-500'}`}>{n}%</div>;
 }

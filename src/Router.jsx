@@ -8,21 +8,18 @@ import TestFlowDynamic from "./pages/TestFlowDynamic";
 import Report from "./pages/Report";
 import Register from "./pages/Register";
 import CompanyPage from "./components/manager";
+import ObservatoryPage from "./pages/manager/Observatory";
 
 // Admin Layout and Pages
 import AdminLayout from "./components/layout/AdminLayout";
 import AdminOverview from "./pages/admin/Overview";
 import AdminCompaniesPage from "./pages/admin/Companies";
 import AdminTestsPageSimplified from "./pages/admin/TestsSimplified";
+import AdminTransforMachinePage from "./pages/admin/TransforMachine";
 import AdminSettingsPage from "./pages/admin/Settings";
+import AdminAiUsagePage from "./pages/admin/AiUsage";
 
 import { getCurrentUser, getToken } from "./utils/auth";
-
-function Protected({ children }) {
-  const token = getToken();
-  if (!token) return <Navigate to="/login" replace />;
-  return children;
-}
 
 function SuperAdminProtected({ children }) {
   const token = getToken();
@@ -45,8 +42,7 @@ function UserProtected({ children }) {
   const token = getToken();
   const user = getCurrentUser();
   const role = (user?.role || "").toString().toUpperCase();
-  // Allow all authenticated users (USER, COMPANY_ADMIN, SUPER_ADMIN)
-  if (!token) return <Navigate to="/login" replace />;
+  if (!token || (role !== "USER" && role !== "GUEST")) return <Navigate to="/login" replace />;
   return children;
 }
 
@@ -74,7 +70,9 @@ export default function Router() {
           <Route index element={<AdminOverview />} />
           <Route path="companies" element={<AdminCompaniesPage />} />
           <Route path="tests" element={<AdminTestsPageSimplified />} />
+          <Route path="transformachine" element={<AdminTransforMachinePage />} />
           <Route path="settings" element={<AdminSettingsPage />} />
+          <Route path="usage" element={<AdminAiUsagePage />} />
         </Route>
 
         {/* Legacy /admin route - redirect to /dashboard */}
@@ -82,6 +80,7 @@ export default function Router() {
 
         {/* COMPANY_ADMIN routes */}
         <Route path="/company" element={<CompanyAdminProtected><CompanyPage /></CompanyAdminProtected>} />
+        <Route path="/company/observatory" element={<CompanyAdminProtected><ObservatoryPage /></CompanyAdminProtected>} />
 
         {/* catch-all */}
         <Route path="*" element={<Navigate to="/" replace />} />

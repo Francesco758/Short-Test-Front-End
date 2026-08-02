@@ -3,30 +3,38 @@ import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { saveAuth } from '../utils/auth';
 import { api } from '../utils/api';
-import AOS from 'aos';
-import {
-  FaEnvelope,
-  FaLock,
-  FaEye,
-  FaEyeSlash,
-  FaExclamationTriangle,
-  FaArrowLeft,
-  FaRocket,
-  FaShieldAlt,
-  FaUserTie
-} from 'react-icons/fa';
+import { FaEye, FaEyeSlash, FaArrowLeft, FaGlobe } from 'react-icons/fa';
+import { Link as RouterLink } from 'react-router-dom';
 
 export default function Login() {
-  useEffect(() => {
-    AOS.refresh();
-  }, []);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [guestName, setGuestName] = useState('');
+  const [selectedCompanyId, setSelectedCompanyId] = useState('');
+  const [guestCompanies, setGuestCompanies] = useState([]);
+  const [guestLoading, setGuestLoading] = useState(false);
+  const [showGuestForm, setShowGuestForm] = useState(false);
+  const [theme, setTheme] = useState(() => localStorage.getItem('authTheme') || 'dark');
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
+  const isLightTheme = theme === 'light';
+
+  const toggleTheme = () => {
+    setTheme(prev => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('authTheme', next);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    api('/api/company/tests/guest-companies')
+      .then(setGuestCompanies)
+      .catch(() => {});
+  }, []);
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -55,10 +63,10 @@ export default function Login() {
       login({ token: data.token, user: data.user });
 
       const userRole = (data.user.role || 'USER').toUpperCase();
-      
+
       switch (userRole) {
         case 'SUPER_ADMIN':
-          navigate('/admin');
+          navigate('/dashboard');
           break;
         case 'COMPANY_ADMIN':
           navigate('/company');
@@ -76,177 +84,235 @@ export default function Login() {
     }
   }
 
+  async function handleGuestLogin(e) {
+    e.preventDefault();
+    setError(null);
+
+    if (!guestName.trim()) {
+      setError('Please enter your name');
+      return;
+    }
+
+    if (!selectedCompanyId) {
+      setError('Please select a company');
+      return;
+    }
+
+    setGuestLoading(true);
+
+    try {
+      const data = await api('/api/auth/guest-login', {
+        method: 'POST',
+        body: JSON.stringify({ name: guestName.trim(), companyId: selectedCompanyId })
+      });
+
+      saveAuth({ token: data.token, user: data.user });
+      login({ token: data.token, user: data.user });
+      navigate('/test');
+    } catch (err) {
+      setError(err?.error || err?.message || 'Guest login failed');
+    } finally {
+      setGuestLoading(false);
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Animated Background Shapes */}
-      <div className="absolute inset-0 opacity-50">
-        <div className="absolute top-0 left-0 w-72 h-72 bg-blue-100 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
-        <div className="absolute top-0 right-0 w-72 h-72 bg-indigo-100 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
-        <div className="absolute -bottom-8 left-20 w-72 h-72 bg-purple-100 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
-      </div>
-
-      <div className="relative z-10">
-        {/* Header */}
-        <div className="sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="flex justify-center" data-aos="fade-down" data-aos-delay="100">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-blue-800 rounded-lg flex items-center justify-center shadow-md" data-aos="zoom-in" data-aos-delay="150">
-                <FaRocket className="text-white text-lg" />
-              </div>
-              <span className="text-2xl font-bold text-gray-900" data-aos="fade-right" data-aos-delay="200">shorTest</span>
-            </div>
-          </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900" data-aos="fade-up" data-aos-delay="250">
-            Sign in to your account
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600" data-aos="fade-up" data-aos-delay="300">
-            Or{' '}
-            <Link
-              to="/register"
-              className="font-medium text-blue-600 hover:text-blue-500 transition-colors duration-200"
-            >
-              register your company
-            </Link>
-          </p>
+    <div className={`min-h-screen flex flex-col ${isLightTheme ? 'bg-white' : 'bg-[#0d1117]'}`}>
+      <header className={`flex items-center justify-between px-4 sm:px-6 lg:px-8 py-4 sm:py-5 border-b ${isLightTheme ? 'border-emerald-700' : 'border-gray-800'}`}>
+        <div className="flex items-center gap-3">
+          <RouterLink to="/" className={`${isLightTheme ? 'text-emerald-700 hover:text-emerald-900' : 'text-gray-400 hover:text-white'} transition-colors`}>
+            <FaArrowLeft className="w-4 h-4" />
+          </RouterLink>
+          <Link to="/" className="text-xs sm:text-sm font-bold tracking-widest">
+            <span className={isLightTheme ? 'text-[#0F172A]' : 'text-white'}>SHOR</span><span className="text-[#00d4aa]">TEST</span>
+          </Link>
         </div>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button
+            onClick={toggleTheme}
+            className={`px-3 sm:px-4 py-2 text-xs font-semibold rounded-md transition-colors ${isLightTheme ? 'bg-white border border-emerald-700 text-gray-900 hover:bg-gray-50' : 'text-gray-300 bg-[#1c2128] border border-gray-700 hover:bg-[#262c36]'}`}
+          >
+            <span className="hidden sm:inline">THEME: </span>{isLightTheme ? 'DARK' : 'LIGHT'}
+          </button>
+        </div>
+      </header>
 
-        {/* Login Form */}
-        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md" data-aos="fade-up" data-aos-delay="400">
-          <div className="bg-white py-8 px-4 shadow-lg sm:rounded-xl sm:px-10 border border-gray-200/60 backdrop-blur-sm">
-            {error && (
-              <div className="mb-6 rounded-lg bg-red-50 p-4 border border-red-200 flex items-start gap-3">
-                <FaExclamationTriangle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-red-800">{error}</p>
-                </div>
+      <main className="flex-1 flex items-start sm:items-center justify-center px-3 sm:px-4 lg:px-6 py-6 sm:py-8 lg:py-12">
+        <div className="w-full max-w-2xl mx-auto">
+
+          {showGuestForm ? (
+            /* Guest Login Form */
+            <div className={`border rounded-xl p-4 sm:p-6 md:p-8 lg:p-10 ${isLightTheme ? 'bg-white border-emerald-700' : 'bg-[#161b22] border-gray-800'}`}>
+              <button
+                onClick={() => { setShowGuestForm(false); setError(null); }}
+                className={`flex items-center gap-2 text-xs sm:text-sm mb-4 transition-colors ${isLightTheme ? 'text-gray-500 hover:text-[#0F172A]' : 'text-gray-400 hover:text-white'}`}
+              >
+                <FaArrowLeft className="w-3 h-3" />
+                Back to Sign In
+              </button>
+
+              <div className="flex items-center gap-3 mb-4">
+                <FaGlobe className="w-6 h-6 text-[#00d4aa]" />
+                <h2 className={`text-xl sm:text-2xl font-bold ${isLightTheme ? 'text-[#0F172A]' : 'text-white'}`}>
+                  Guest Access
+                </h2>
               </div>
-            )}
+              <p className={`text-xs sm:text-sm mb-6 ${isLightTheme ? 'text-gray-500' : 'text-gray-400'}`}>
+                Enter your name and select a company to start testing. No email or password required.
+              </p>
 
-            <form onSubmit={handleLogin} className="space-y-6">
-              {/* Email Field */}
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  Email address
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FaEnvelope className="h-5 w-5 text-gray-400" />
+              {error && (
+                <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-900/30 border border-red-800 rounded-lg">
+                  <p className="text-xs sm:text-sm text-red-400">{error}</p>
+                </div>
+              )}
+
+              <form onSubmit={handleGuestLogin}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
+                  <div>
+                    <label className={`block text-xs sm:text-sm mb-2 ${isLightTheme ? 'text-gray-600' : 'text-gray-400'}`}>Your Name</label>
+                    <input
+                      type="text"
+                      value={guestName}
+                      onChange={(e) => setGuestName(e.target.value)}
+                      placeholder="Enter your name"
+                      disabled={guestLoading}
+                      className={`w-full min-h-[44px] border text-sm rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 transition-colors focus:outline-none focus:border-[#00d4aa] focus:ring-1 focus:ring-[#00d4aa] ${isLightTheme ? 'bg-white border-emerald-700 text-[#0F172A] placeholder-gray-400' : 'bg-[#0d1117] border-[#30363d] text-white placeholder-gray-600'}`}
+                    />
                   </div>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-all duration-200"
-                    placeholder="you@example.com"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Password Field */}
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                  Password
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FaLock className="h-5 w-5 text-gray-400" />
+                  <div>
+                    <label className={`block text-xs sm:text-sm mb-2 ${isLightTheme ? 'text-gray-600' : 'text-gray-400'}`}>Company</label>
+                    <select
+                      value={selectedCompanyId}
+                      onChange={(e) => setSelectedCompanyId(e.target.value)}
+                      disabled={guestLoading}
+                      className={`w-full min-h-[44px] border text-sm rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 transition-colors focus:outline-none focus:border-[#00d4aa] focus:ring-1 focus:ring-[#00d4aa] ${isLightTheme ? 'bg-white border-emerald-700 text-[#0F172A]' : 'bg-[#0d1117] border-[#30363d] text-white'}`}
+                    >
+                      <option value="">Select a company</option>
+                      {guestCompanies.filter(c => c.name !== 'Adnan').map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
                   </div>
-                  <input
-                    id="password"
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-all duration-200"
-                    placeholder="Enter your password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors duration-200"
-                  >
-                    {showPassword ? (
-                      <FaEyeSlash className="w-5 h-5" />
-                    ) : (
-                      <FaEye className="w-5 h-5" />
-                    )}
-                  </button>
                 </div>
-              </div>
+                <button
+                  type="submit"
+                  disabled={guestLoading || !guestName.trim() || !selectedCompanyId}
+                  className="w-full min-h-[44px] bg-[#00d4aa] hover:bg-[#00b894] text-[#0d1117] font-semibold text-xs sm:text-sm uppercase tracking-wide py-2.5 sm:py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {guestLoading ? 'Logging in...' : 'Login as Guest'}
+                </button>
+              </form>
+            </div>
+          ) : (
+            /* Regular Login Form */
+            <div className={`border rounded-xl p-4 sm:p-6 md:p-8 lg:p-10 ${isLightTheme ? 'bg-white border-emerald-700' : 'bg-[#161b22] border-gray-800'}`}>
+              <h1 className={`text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold mb-2 sm:mb-3 ${isLightTheme ? 'text-[#0F172A]' : 'text-white'}`}>
+                Sign In to Your Account
+              </h1>
+              <p className={`text-xs sm:text-sm mb-6 sm:mb-8 ${isLightTheme ? 'text-gray-500' : 'text-gray-400'}`}>
+                Enter your credentials to access your account.
+              </p>
 
-              {/* Login Button */}
-              <div>
+              {error && (
+                <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-900/30 border border-red-800 rounded-lg">
+                  <p className="text-xs sm:text-sm text-red-400">{error}</p>
+                </div>
+              )}
+
+              <form onSubmit={handleLogin}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
+                  <div>
+                    <label className={`block text-xs sm:text-sm mb-2 ${isLightTheme ? 'text-gray-600' : 'text-gray-400'}`}>
+                      E-mail
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@organization.com"
+                      disabled={loading}
+                      className={`w-full min-h-[44px] border text-sm rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 transition-colors focus:outline-none focus:border-[#00d4aa] focus:ring-1 focus:ring-[#00d4aa] ${isLightTheme ? 'bg-white border-emerald-700 text-[#0F172A] placeholder-gray-400' : 'bg-[#0d1117] border-[#30363d] text-white placeholder-gray-600'}`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={`block text-xs sm:text-sm mb-2 ${isLightTheme ? 'text-gray-600' : 'text-gray-400'}`}>
+                      Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        name="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="*******"
+                        disabled={loading}
+                        className={`w-full min-h-[44px] border text-sm rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 pr-10 transition-colors focus:outline-none focus:border-[#00d4aa] focus:ring-1 focus:ring-[#00d4aa] ${isLightTheme ? 'bg-white border-emerald-700 text-[#0F172A] placeholder-gray-400' : 'bg-[#0d1117] border-[#30363d] text-white placeholder-gray-600'}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className={`absolute right-3 top-1/2 -translate-y-1/2 transition-colors ${isLightTheme ? 'text-gray-400 hover:text-gray-600' : 'text-gray-500 hover:text-gray-400'}`}
+                      >
+                        {showPassword ? (
+                          <FaEyeSlash className="w-4 h-4" />
+                        ) : (
+                          <FaEye className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02]"
+                  className="w-full min-h-[44px] bg-[#00d4aa] hover:bg-[#00b894] text-[#0d1117] font-semibold text-xs sm:text-sm uppercase tracking-wide py-2.5 sm:py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? (
-                    <div className="flex items-center justify-center space-x-2">
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      <span>Signing in...</span>
-                    </div>
-                  ) : (
-                    'Sign in'
-                  )}
+                  {loading ? 'Signing in...' : 'Sign In'}
                 </button>
-              </div>
-            </form>
-
-            {/* Security Info */}
-            <div className="mt-6 pt-6 border-t border-gray-200">
-              <div className="flex items-center justify-center space-x-2 text-gray-600">
-                <FaShieldAlt className="w-4 h-4 text-green-500" />
-                <span className="text-sm font-medium">Enterprise-grade security</span>
-              </div>
+              </form>
             </div>
-          </div>
+          )}
 
-          {/* Demo Badge */}
-          <div className="mt-6 text-center" data-aos="fade-up" data-aos-delay="500">
-            <div className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-blue-100 text-blue-800 border border-blue-200/60 backdrop-blur-sm">
-              <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
-              Live Demo - Platform v2.0
+          {/* Guest Login Button (always visible when NOT in guest form) */}
+          {!showGuestForm && guestCompanies.length > 0 && (
+            <div className="mt-4 text-center">
+              <button
+                onClick={() => { setShowGuestForm(true); setError(null); }}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-transparent border border-[#00d4aa] text-[#00d4aa] hover:bg-[#00d4aa]/10 rounded-lg text-sm font-semibold transition-colors"
+              >
+                <FaGlobe className="w-4 h-4" />
+                Login As Guest
+              </button>
+              <p className={`text-xs mt-2 ${isLightTheme ? 'text-gray-400' : 'text-gray-500'}`}>
+                No email or password required. Just pick a name and start.
+              </p>
             </div>
-          </div>
+          )}
 
-          {/* Back to Home */}
-          <div className="mt-6 text-center" data-aos="fade-up" data-aos-delay="550">
-            <Link 
-              to="/" 
-              className="inline-flex items-center text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors duration-200 hover:underline"
-            >
-              <FaArrowLeft className="w-4 h-4 mr-2" />
-              Back to Home
-            </Link>
-          </div>
+          {/* Links */}
+          {!showGuestForm && (
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6 mt-4 sm:mt-6">
+              <p className={`text-center text-xs sm:text-sm ${isLightTheme ? 'text-gray-500' : 'text-gray-500'}`}>
+                Don&apos;t have an account?{' '}
+                <Link to="/register" className={`hover:underline ${isLightTheme ? 'text-emerald-700' : 'text-[#00d4aa]'}`}>
+                  Register
+                </Link>
+              </p>
+              <span className={`hidden sm:block ${isLightTheme ? 'text-gray-300' : 'text-gray-600'}`}>|</span>
+              <Link to="/" className={`text-xs sm:text-sm transition-colors ${isLightTheme ? 'text-gray-400 hover:text-gray-600' : 'text-gray-500 hover:text-gray-400'}`}>
+                Back to Home
+              </Link>
+            </div>
+          )}
         </div>
-      </div>
-
-      {/* Add custom animations */}
-      <style jsx>{`
-        @keyframes blob {
-          0% { transform: translate(0px, 0px) scale(1); }
-          33% { transform: translate(30px, -50px) scale(1.1); }
-          66% { transform: translate(-20px, 20px) scale(0.9); }
-          100% { transform: translate(0px, 0px) scale(1); }
-        }
-        .animate-blob {
-          animation: blob 7s infinite;
-        }
-        .animation-delay-2000 {
-          animation-delay: 2s;
-        }
-        .animation-delay-4000 {
-          animation-delay: 4s;
-        }
-      `}</style>
+      </main>
+      <footer className="px-4 sm:px-6 lg:px-8 py-4 text-center">
+        <p className={`text-xs ${isLightTheme ? 'text-gray-400' : 'text-gray-500'}`}>The information will be used exclusively for educational purposes.</p>
+      </footer>
     </div>
   );
 }

@@ -1,17 +1,92 @@
 /* AOS import MUST be first */
 @import 'aos/dist/aos.css';
 
-/* Then Tailwind directives */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Your custom styles */
+:root {
+  --background: 0 0% 96%;
+  --foreground: 0 0% 9%;
+  --card: 0 0% 98%;
+  --card-foreground: 0 0% 9%;
+  --popover: 0 0% 89%;
+  --popover-foreground: 0 0% 9%;
+  --primary: 161 93% 30%;
+  --primary-foreground: 151 80% 95%;
+  --secondary: 0 0% 32%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 0 0% 63%;
+  --muted-foreground: 0 0% 9%;
+  --accent: 166 76% 96%;
+  --accent-foreground: 173 80% 40%;
+  --destructive: 0 72% 50%;
+  --destructive-foreground: 0 85% 97%;
+  --border: 0 0% 83%;
+  --input: 0 0% 83%;
+  --ring: 161 93% 30%;
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: 0 0% 0%;
+  --foreground: 0 0% 98%;
+  --card: 0 0% 14%;
+  --card-foreground: 0 0% 98%;
+  --popover: 0 0% 25%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 158 64% 51%;
+  --primary-foreground: 165 91% 9%;
+  --secondary: 0 0% 45%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 0 0% 45%;
+  --muted-foreground: 0 0% 98%;
+  --accent: 178 84% 10%;
+  --accent-foreground: 172 66% 50%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 85% 97%;
+  --border: 0 0% 32%;
+  --input: 0 0% 32%;
+  --ring: 158 64% 51%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
 body {
-  margin: 0;
-  font-family: 'Montserrat', sans-serif;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #0f172a;
-  color: white;
+  font-family: 'Montserrat', sans-serif;
+  margin: 0;
+}
+
+.section-padding {
+  padding-top: 5rem;
+  padding-bottom: 5rem;
+}
+
+@media (min-width: 768px) {
+  .section-padding {
+    padding-top: 8rem;
+    padding-bottom: 8rem;
+  }
+}
+
+video::-webkit-media-controls {
+  display: none !important;
+}
+
+video::-webkit-media-controls-enclosure {
+  display: none !important;
+}
+
+video::-webkit-media-controls-panel {
+  display: none !important;
+}
+
+video::-webkit-media-controls-toggle-closed-captions-button {
+  display: none !important;
 }

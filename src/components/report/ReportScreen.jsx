@@ -3,53 +3,52 @@ import KPIAnimatedNumber from './KPIAnimatedNumber';
 import KPIBarChart from './KPIBarChart';
 import SummaryCard from './SummaryCard';
 
-export default function ReportScreen({ report }) {
+const CKPI_LABELS = [
+  { key: 'simplification', label: 'Simplification' },
+  { key: 'originality', label: 'Originality' },
+  { key: 'feasibility', label: 'Feasibility' },
+  { key: 'criticalThinking', label: 'Critical Thinking' },
+  { key: 'proactivity', label: 'Proactivity' },
+  { key: 'impact', label: 'Impact' }
+];
+
+export default function ReportScreen({ report, theme = "dark" }) {
+  const isLightTheme = theme === "light";
   const components = report?.kpis?.components || {};
-  const confidence = report?.kpis?.evaluationMetadata?.confidence || null;
-  const messageCount = report?.kpis?.evaluationMetadata?.messageCount || null;
-  const engagement = messageCount ? Math.min(100, Math.round((messageCount / 12) * 100)) : null;
+  const isEmpty = !report.summary;
 
   return (
     <div className="space-y-6">
-      <div className="text-center" data-aos="fade-up" data-aos-delay="100">
-        <div className="text-sm text-gray-500">Your current Change KPI is</div>
-        <KPIAnimatedNumber value={report.percentage || 0} />
+      <div className="text-center">
+        <div className={`text-sm font-semibold uppercase tracking-wider mb-1 ${isLightTheme ? 'text-[#0F172A]' : 'text-white'}`}>Test CKPI Score</div>
+        <KPIAnimatedNumber value={report.percentage || 0} theme={theme} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div data-aos="fade-right" data-aos-delay="200">
-          <KPIBarChart
-            values={[
-              components.creativity ?? 0,
-              components.feasibility ?? 0,
-              components.proactivity ?? 0,
-              confidence ?? 0,
-              engagement ?? 0
-            ]}
-            labels={['Creativity','Feasibility','Proactivity','Confidence','Engagement']}
-          />
-        </div>
-        <div data-aos="fade-left" data-aos-delay="300">
+      <div>
+        <KPIBarChart
+          values={CKPI_LABELS.map(({ key }) => components[key] ?? 0)}
+          labels={CKPI_LABELS.map(({ label }) => label)}
+          theme={theme}
+          barColor={isLightTheme ? 'white' : undefined}
+        />
+      </div>
+      <div>
+        {isEmpty ? (
+          <div className={`rounded-xl border p-5 shadow-sm space-y-2 ${isLightTheme ? 'bg-white border-emerald-600' : 'bg-[#202025] border-[#2e2e36]'}`}>
+            <div className={`font-bold ${isLightTheme ? 'text-[#0F172A]' : 'text-gray-200'}`}>Test Insight</div>
+            <p className={`text-sm leading-relaxed ${isLightTheme ? 'text-gray-500' : 'text-gray-400'}`}>
+              The user left this test too early without describing any problem or solution. Ensure users complete the full test with sufficient conversation for a proper evaluation.
+            </p>
+          </div>
+        ) : (
           <SummaryCard 
             text={report.summary || 'No summary'} 
             strengths={report.kpis?.strengths || []}
             improvements={report.kpis?.improvements || []}
+            theme={theme}
           />
-        </div>
+        )}
       </div>
-
-      {(components.simplification != null || components.originality != null || components.criticalThinking != null) && (
-        <div data-aos="fade-up" data-aos-delay="350">
-          <KPIBarChart
-            values={[
-              components.simplification ?? 0,
-              components.originality ?? 0,
-              components.criticalThinking ?? 0
-            ]}
-            labels={['Simplification','Originality','Critical Thinking']}
-          />
-        </div>
-      )}
     </div>
   );
 }

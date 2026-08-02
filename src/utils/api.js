@@ -38,6 +38,13 @@ export async function api(path, opts = {}) {
   }
 
   if (!response.ok) {
+    if (response.status === 429) {
+      const retryAfter = response.headers.get('Retry-After') || payload?.retryAfter || null;
+      const msg = retryAfter
+        ? `Too many requests. Please wait ${retryAfter} before trying again.`
+        : (payload?.error || 'Too many requests. Please wait before trying again.');
+      throw { error: msg, status: 429, retryAfter };
+    }
     const err = payload?.error || payload?.message || payload || { error: 'unknown' };
     throw err;
   }

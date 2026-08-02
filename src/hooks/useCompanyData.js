@@ -8,12 +8,15 @@ export default function useCompanyData(companyId) {
   const [tests, setTests] = useState([]);
   const [recentRuns, setRecentRuns] = useState([]);
   const [deadlines, setDeadlines] = useState([]);
+  const [companyName, setCompanyName] = useState('');
   const [problemSolutionData, setProblemSolutionData] = useState({ 
     problems: [], 
     solutions: [], 
-    recentProblems: [], // Added
-    allSolutions: [],   // Added
+    problemCategories: [],
+    solutionCategories: [],
     matrix: [], 
+    totalProblemCount: 0,
+    totalSolutionCount: 0,
     totalReports: 0 
   });
   const [loading, setLoading] = useState(true);
@@ -54,6 +57,7 @@ export default function useCompanyData(companyId) {
       
       // Pass metricsData to formatKpis to get trend/delta
       setKpis(formatKpis(statsData, metricsData));
+      setCompanyName(statsData?.companyName || '');
       
       setRecentRuns(formatRecentRuns(reportsData));
       setDeadlines(formatDeadlines(deadlinesData));
@@ -64,7 +68,11 @@ export default function useCompanyData(companyId) {
           componentTrends: metricsData.componentTrends,
           totalReports: metricsData.totalReports,
           trend: metricsData.trend,
-          lastUpdated: metricsData.lastUpdated
+          lastUpdated: metricsData.lastUpdated,
+          globalCkpi: metricsData.globalCkpi,
+          globalSummary: metricsData.globalSummary,
+          globalStrengths: metricsData.globalStrengths,
+          globalImprovements: metricsData.globalImprovements
         });
       }
     } catch (err) {
@@ -139,9 +147,11 @@ export default function useCompanyData(companyId) {
       return {
         problems: overview.problems?.slice(0, 3) || [], // Top 3 problems for card
         solutions: overview.solutions?.slice(0, 3) || [], // Top 3 solutions for card
-        recentProblems: overview.recentProblems || [], // 10 most recent problems
-        allSolutions: overview.solutions || [], // All (10) solutions for modal
+        problemCategories: overview.problemCategories || [], // All problem categories with reports
+        solutionCategories: overview.solutionCategories || [], // All solution categories with reports
         matrix: overview.matrix || [], // Full matrix
+        totalProblemCount: overview.totalProblemCount || 0,
+        totalSolutionCount: overview.totalSolutionCount || 0,
         totalReports: overview.totalReports || 0
       };
     } catch (err) {
@@ -149,9 +159,11 @@ export default function useCompanyData(companyId) {
       return { 
         problems: [], 
         solutions: [], 
-        recentProblems: [], 
-        allSolutions: [], 
+        problemCategories: [],
+        solutionCategories: [],
         matrix: [], 
+        totalProblemCount: 0,
+        totalSolutionCount: 0,
         totalReports: 0 
       };
     }
@@ -217,6 +229,11 @@ export default function useCompanyData(companyId) {
       });
 
       setUsers(prev => prev.filter(user => user.id !== userId));
+
+      const statsData = await fetchCompanyStats();
+      if (statsData) {
+        setKpis(formatKpis(statsData, ckpiMetrics));
+      }
     } catch (err) {
       console.error('Failed to delete user:', err);
       throw err;
@@ -328,7 +345,8 @@ export default function useCompanyData(companyId) {
   }
 
   return {
-   users, 
+    companyName,
+    users, 
     tests, 
     kpis,
     ckpiMetrics,

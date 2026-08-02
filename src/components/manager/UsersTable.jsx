@@ -38,7 +38,10 @@ export default function UsersTable({
   onDelete = () => {},
   onEdit = () => {},
   onReport = () => {},
+  onAddUser = () => {},
+  theme = "dark",
 }) {
+  const isLightTheme = theme === "light";
   const [search, setSearch] = useState("");
   const [pageSize, setPageSize] = useState(10);
   const [page, setPage] = useState(1);
@@ -115,11 +118,11 @@ export default function UsersTable({
 
   function getSortIcon(field) {
     if (sortField !== field) {
-      return <FaSort className="w-3 h-3 text-gray-300" />;
+      return <FaSort className="w-3 h-3 text-gray-600" />;
     }
     return sortDirection === 'asc' ? 
-      <FaSortUp className="w-3 h-3 text-indigo-600" /> : 
-      <FaSortDown className="w-3 h-3 text-indigo-600" />;
+      <FaSortUp className="w-3 h-3 text-emerald-500" /> : 
+      <FaSortDown className="w-3 h-3 text-emerald-500" />;
   }
 
   // Format date for display
@@ -140,283 +143,179 @@ export default function UsersTable({
       .slice(0, 2);
   }
 
-  // Get role display name and color
-  function getRoleInfo(role) {
-    switch (role) {
-      case 'SUPER_ADMIN':
-        return { display: 'Super Admin', color: 'bg-red-100 text-red-800 border-red-200' };
-      case 'COMPANY_ADMIN':
-        return { display: 'Company Manager', color: 'bg-purple-100 text-purple-800 border-purple-200' };
-      case 'STUDENT':
-        return { display: 'Student', color: 'bg-blue-100 text-blue-800 border-blue-200' };
-      case 'TEACHER':
-        return { display: 'Teacher', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
-      case 'USER':
-      default:
-        return { display: 'User', color: 'bg-gray-100 text-gray-800 border-gray-200' };
-    }
-  }
+  const roleInfoMap = useMemo(() => ({
+    SUPER_ADMIN: isLightTheme
+      ? { display: 'Super Admin', color: 'bg-red-100 text-[#0F172A] border-red-200' }
+      : { display: 'Super Admin', color: 'bg-red-900/20 text-red-400 border-red-900/30' },
+    COMPANY_ADMIN: isLightTheme
+      ? { display: 'Company Manager', color: 'bg-emerald-100 text-[#0F172A] border-emerald-200' }
+      : { display: 'Company Manager', color: 'bg-emerald-900/20 text-emerald-400 border-emerald-900/30' },
+    USER: isLightTheme
+      ? { display: 'User', color: 'bg-gray-100 text-[#0F172A] border-gray-200' }
+      : { display: 'User', color: 'bg-gray-800 text-gray-400 border-gray-700' }
+  }), [isLightTheme]);
 
   return (
-    <div className="bg-[#1e293b] rounded-3xl overflow-hidden border border-gray-800 shadow-2xl">
-      
-      {/* Toolbar */}
-      <div className="p-8 border-b border-gray-800 bg-[#1e293b]/50 backdrop-blur-xl">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          
-          {/* Left Section */}
-          <div className="flex items-center gap-6">
-            <div className="w-12 h-12 bg-[#0f172a] border border-gray-700 rounded-2xl flex items-center justify-center shadow-inner">
-              <FaUser className="w-6 h-6 text-[#00f2aa]" />
-            </div>
-            <div>
-              <h3 className="text-xl font-black text-white uppercase tracking-tighter flex items-center gap-3">
-                Fleet Management
-              </h3>
-              <div className="flex flex-wrap items-center gap-4 mt-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Total:</span>
-                  <span className="text-xs font-black text-white">{users.length}</span>
-                </div>
-                <div className="w-1 h-1 bg-gray-700 rounded-full"></div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Selected:</span>
-                  <span className="text-xs font-black text-[#00f2aa]">{selectedIds.length}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Section */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-            
-            {/* Search */}
-            <div className="relative group flex-1 sm:w-72">
-              <FaSearch className="w-4 h-4 absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-600 group-focus-within:text-[#00f2aa] transition-colors" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-                placeholder="SEARCH OPERATIVES..."
-                className="w-full pl-12 pr-4 py-3 bg-[#0f172a] border border-gray-800 rounded-xl text-white placeholder-gray-600 focus:ring-2 focus:ring-[#00f2aa]/20 focus:border-[#00f2aa] transition-all font-bold text-xs uppercase tracking-widest"
-              />
-            </div>
-
-            {/* Page Size */}
-            <div className="relative">
-              <select 
-                value={pageSize} 
-                onChange={handlePageSizeChange}
-                className="appearance-none pl-4 pr-10 py-3 bg-[#0f172a] border border-gray-800 rounded-xl text-white focus:ring-2 focus:ring-[#00f2aa]/20 focus:border-[#00f2aa] transition-all font-bold text-xs uppercase tracking-widest cursor-pointer"
-              >
-                <option value={5}>05 / PAGE</option>
-                <option value={10}>10 / PAGE</option>
-                <option value={20}>20 / PAGE</option>
-                <option value={50}>50 / PAGE</option>
-              </select>
-              <HiDotsHorizontal className="w-4 h-4 absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-600 pointer-events-none" />
-            </div>
-
-            {/* Select All Button */}
-            <button
-              onClick={toggleSelectAllOnPage}
-              disabled={pageData.length === 0}
-              className="px-6 py-3 bg-[#0f172a] border border-gray-800 text-gray-400 rounded-xl font-black uppercase tracking-widest hover:bg-gray-800 hover:text-white disabled:opacity-50 transition-all text-[10px] flex items-center gap-3"
-            >
-              <FaCheck className="w-3 h-3 text-[#00f2aa]" />
-              Sync Selection
-            </button>
-          </div>
-        </div>
+    <div className={`${isLightTheme ? 'bg-white border-emerald-700' : 'bg-[#18181B] border-emerald-500'} rounded-2xl shadow-sm border overflow-hidden`}>
+      {/* Add User Button */}
+      <div className={`px-4 lg:px-6 py-3 border-b ${isLightTheme ? 'border-emerald-200' : 'border-emerald-500'}`}>
+        <button
+          onClick={onAddUser}
+          className={`px-4 py-2 ${isLightTheme ? 'bg-[#17be8e] text-white hover:bg-[#15a87d]' : 'bg-emerald-500 text-[#0a0e14] hover:bg-emerald-600'} font-bold uppercase tracking-widest rounded-md`}
+        >
+          Add user
+        </button>
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto custom-scrollbar">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="bg-[#0f172a]/30 border-b border-gray-800">
-              <th className="px-8 py-5 text-left">
-                <div className="flex items-center gap-3">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className={`${isLightTheme ? 'bg-emerald-50/50 border-b border-emerald-200' : 'bg-[#09090B] border-b border-emerald-500'}`}>
+            <tr>
+              <th className={`px-4 lg:px-6 py-4 text-left text-xs font-medium ${isLightTheme ? 'text-gray-600' : 'text-gray-500'} uppercase tracking-wider`}>
+                <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
                     checked={pageData.length > 0 && pageData.every(u => selectedIds.includes(u.id))}
                     onChange={toggleSelectAllOnPage}
                     disabled={pageData.length === 0}
-                    className="h-5 w-5 bg-[#0f172a] border-gray-700 rounded text-[#00f2aa] focus:ring-[#00f2aa]/20 disabled:opacity-30 transition-all cursor-pointer"
+                    className={`h-4 w-4 ${isLightTheme ? 'bg-white border-gray-300' : 'bg-[#09090B] border-[#2e2e36]'} border text-emerald-600 focus:ring-emerald-500 rounded disabled:opacity-50`}
                   />
+                  <span className="hidden sm:inline">Select</span>
                 </div>
               </th>
-              <th 
-                className="px-6 py-5 text-left cursor-pointer hover:bg-white/5 transition-colors group"
-                onClick={() => handleSort('name')}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] group-hover:text-white transition-colors">Operative</span>
-                  {getSortIcon('name')}
-                </div>
-              </th>
-              <th 
-                className="px-6 py-5 text-left cursor-pointer hover:bg-white/5 transition-colors group hidden md:table-cell"
-                onClick={() => handleSort('email')}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] group-hover:text-white transition-colors">Communication</span>
-                  {getSortIcon('email')}
-                </div>
-              </th>
-              <th 
-                className="px-6 py-5 text-center cursor-pointer hover:bg-white/5 transition-colors group hidden md:table-cell"
-                onClick={() => handleSort('role')}
-              >
-                <div className="flex items-center justify-center gap-3">
-                  <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] group-hover:text-white transition-colors">Access Level</span>
-                  {getSortIcon('role')}
-                </div>
-              </th>
-              <th 
-                className="px-6 py-5 text-center cursor-pointer hover:bg-white/5 transition-colors group hidden lg:table-cell"
-                onClick={() => handleSort('function')}
-              >
-                <div className="flex items-center justify-center gap-3">
-                  <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] group-hover:text-white transition-colors">Sector</span>
-                  {getSortIcon('function')}
-                </div>
-              </th>
-              <th 
-                className="px-6 py-5 text-center cursor-pointer hover:bg-white/5 transition-colors group hidden lg:table-cell"
-                onClick={() => handleSort('seniorityBand')}
-              >
-                <div className="flex items-center justify-center gap-3">
-                  <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] group-hover:text-white transition-colors">Rank</span>
-                  {getSortIcon('seniorityBand')}
-                </div>
-              </th>
-              <th className="px-8 py-5 text-right">
-                <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Actions</span>
+              <th className={`px-4 lg:px-6 py-4 text-center text-xs font-medium ${isLightTheme ? 'text-gray-600' : 'text-gray-500'} uppercase tracking-wider cursor-pointer`} onClick={() => handleSort('name')}>Name</th>
+              <th className={`px-4 lg:px-6 py-4 text-center text-xs font-medium ${isLightTheme ? 'text-gray-600' : 'text-gray-500'} uppercase tracking-wider cursor-pointer`} onClick={() => handleSort('email')}>Email</th>
+              <th className={`px-4 lg:px-6 py-4 text-center text-xs font-medium ${isLightTheme ? 'text-gray-600' : 'text-gray-500'} uppercase tracking-wider cursor-pointer hidden md:table-cell`} onClick={() => handleSort('role')}>Access level</th>
+              <th className={`px-4 lg:px-6 py-4 text-center text-xs font-medium ${isLightTheme ? 'text-gray-600' : 'text-gray-500'} uppercase tracking-wider cursor-pointer hidden md:table-cell`} onClick={() => handleSort('function')}>Sector</th>
+              <th className={`px-4 lg:px-6 py-4 text-center text-xs font-medium ${isLightTheme ? 'text-gray-600' : 'text-gray-500'} uppercase tracking-wider cursor-pointer hidden md:table-cell`} onClick={() => handleSort('seniorityBand')}>Seniority</th>
+              <th className={`px-4 lg:px-6 py-4 text-center text-xs font-medium ${isLightTheme ? 'text-gray-600' : 'text-gray-500'} uppercase tracking-wider cursor-pointer hidden lg:table-cell`} onClick={() => handleSort('lastLoginAt')}>Last active</th>
+              <th className={`px-4 lg:px-6 py-4 text-center text-xs font-medium ${isLightTheme ? 'text-gray-600' : 'text-gray-500'} uppercase tracking-wider`}>
+                Actions
               </th>
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-gray-800/50">
+          <tbody className={`${isLightTheme ? 'bg-white divide-y divide-gray-200' : 'bg-[#18181B] divide-y divide-[#2e2e36]'}`}>
             {pageData.map((user) => {
-              const roleInfo = getRoleInfo(user.role);
-              const isSelected = selectedIds.includes(user.id);
-              
-              // Map old colors to new cockpit theme
-              const getRankColor = (band) => {
-                if (!band) return 'text-gray-600 border-gray-800 bg-gray-900/30';
-                return 'text-[#00f2aa] border-[#00f2aa]/20 bg-[#00f2aa]/5';
-              };
-
+              const roleInfo = roleInfoMap[user.role] || roleInfoMap.USER;
               return (
-                <tr 
-                  key={user.id} 
-                  className={`group transition-all duration-300 ${
-                    isSelected ? 'bg-[#00f2aa]/5' : 'hover:bg-white/5'
+                <tr
+                  key={user.id}
+                  className={`${isLightTheme ? 'hover:bg-gray-50' : 'hover:bg-[#202025]'} transition-colors duration-150 ${
+                    selectedIds.includes(user.id) ? (isLightTheme ? 'bg-emerald-50 border-l-4 border-l-emerald-500' : 'bg-emerald-500/5 border-l-4 border-l-emerald-500') : ''
                   }`}
                 >
                   {/* Select Checkbox */}
-                  <td className="px-8 py-6 whitespace-nowrap">
+                  <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                     <input
                       type="checkbox"
-                      checked={isSelected}
+                      checked={selectedIds.includes(user.id)}
                       onChange={() => onToggleSelect(user.id)}
-                      className="h-5 w-5 bg-[#0f172a] border-gray-700 rounded text-[#00f2aa] focus:ring-[#00f2aa]/20 transition-all cursor-pointer"
+                      className={`h-4 w-4 ${isLightTheme ? 'bg-white border-gray-300' : 'bg-[#09090B] border-[#2e2e36]'} border text-emerald-600 focus:ring-emerald-500 rounded`}
                     />
                   </td>
 
                   {/* Name */}
-                  <td className="px-6 py-6 whitespace-nowrap">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-[#0f172a] border border-gray-700 rounded-xl flex items-center justify-center shadow-inner group-hover:border-[#00f2aa]/50 transition-colors overflow-hidden">
-                        <span className="text-[#00f2aa] text-xs font-black">
-                          {getUserInitials(user)}
-                        </span>
-                      </div>
-                      <div className="min-w-0">
-                        <div className={`text-sm font-black uppercase tracking-tight transition-colors ${isSelected ? 'text-[#00f2aa]' : 'text-white'}`}>
-                          {user.name || 'ANONYMOUS'}
-                        </div>
-                        {user.assignedTests && user.assignedTests.length > 0 && (
-                          <div className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-1 flex items-center gap-1.5">
-                            <div className="w-1.5 h-1.5 rounded-full bg-[#00f2aa] animate-pulse"></div>
-                            {user.assignedTests.length} ACTIVE ASSIGNMENTS
-                          </div>
-                        )}
-                      </div>
+                  <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
+                    <div className={`font-medium ${isLightTheme ? 'text-gray-900' : 'text-white'} text-left lg:text-center truncate`}>
+                      {user.name || 'Unknown User'}
                     </div>
                   </td>
 
                   {/* Email */}
-                  <td className="px-6 py-6 whitespace-nowrap hidden md:table-cell">
-                    <div className="text-gray-400 text-xs font-bold uppercase tracking-widest group-hover:text-gray-200 transition-colors">
+                  <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
+                    <div className={`${isLightTheme ? 'text-[#0F172A]' : 'text-gray-300'} text-sm lg:text-base text-center`}>
                       {user.email}
                     </div>
                   </td>
 
                   {/* Role */}
-                  <td className="px-6 py-6 whitespace-nowrap hidden md:table-cell text-center">
-                    <span className="inline-flex px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border border-gray-800 bg-gray-900/50 text-gray-400 group-hover:border-gray-700 transition-colors">
-                      {roleInfo.display}
-                    </span>
+                  <td className="px-4 lg:px-6 py-4 whitespace-nowrap hidden md:table-cell">
+                    <div className="flex justify-center">
+                      <span className={`inline-flex px-3 py-0.5 rounded-md text-xs font-medium border ${roleInfo.color}`}>
+                        {roleInfo.display}
+                      </span>
+                    </div>
                   </td>
-                  
+
                   {/* Function */}
-                  <td className="px-6 py-6 whitespace-nowrap hidden lg:table-cell text-center">
-                    {user.function ? (
-                      <span className="inline-flex px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border border-[#00f2aa]/10 bg-[#00f2aa]/5 text-[#00f2aa]/70 group-hover:text-[#00f2aa] transition-all">
-                        {user.function}
-                      </span>
-                    ) : (
-                      <span className="text-gray-700 font-black text-[10px]">—</span>
-                    )}
+                  <td className="px-4 lg:px-6 py-4 whitespace-nowrap hidden md:table-cell">
+                    <div className={`text-center text-sm ${isLightTheme ? 'text-[#0F172A]' : 'text-gray-300'}`}>
+                      {user.function ? (
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium border bg-transparent ${isLightTheme ? 'text-[#0F172A] border-gray-200' : 'text-gray-300 border-[#2a364a]'}`}>
+                          {user.function}
+                        </span>
+                      ) : (
+                        <span className={isLightTheme ? 'text-gray-400' : 'text-gray-600'}>—</span>
+                      )}
+                    </div>
                   </td>
-                  
+
                   {/* Seniority */}
-                  <td className="px-6 py-6 whitespace-nowrap hidden lg:table-cell text-center">
-                    {user.seniorityBand ? (
-                      <span className={`inline-flex px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${getRankColor(user.seniorityBand)}`}>
-                        {user.seniorityBand}
-                      </span>
-                    ) : (
-                      <span className="text-gray-700 font-black text-[10px]">—</span>
-                    )}
+                  <td className="px-4 lg:px-6 py-4 whitespace-nowrap hidden md:table-cell">
+                    <div className={`text-center text-sm ${isLightTheme ? 'text-[#0F172A]' : 'text-gray-300'}`}>
+                      {user.seniorityBand ? (
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium border bg-transparent ${isLightTheme ? 'text-[#0F172A] border-gray-200' : 'text-gray-300 border-[#2a364a]'}`}>
+                          {user.seniorityBand}
+                        </span>
+                      ) : (
+                        <span className={isLightTheme ? 'text-gray-400' : 'text-gray-600'}>—</span>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* Last Active */}
+                  <td className="px-4 lg:px-6 py-4 whitespace-nowrap hidden lg:table-cell">
+                    <div className={`text-sm ${isLightTheme ? 'text-gray-600' : 'text-gray-300'} flex items-center justify-center gap-2`}>
+                      {user.lastLoginAt ? (
+                        <>
+                          <FaCheck className="w-3 h-3 text-emerald-500" />
+                          {formatDate(user.lastLoginAt)}
+                        </>
+                      ) : (
+                        <>
+                          <FaTimes className={`w-3 h-3 ${isLightTheme ? 'text-gray-400' : 'text-gray-600'}`} />
+                          Never
+                        </>
+                      )}
+                    </div>
                   </td>
 
                   {/* Actions */}
-                  <td className="px-8 py-6 whitespace-nowrap text-right">
-                    <div className="flex items-center justify-end gap-3 opacity-40 group-hover:opacity-100 transition-opacity">
+                  <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center justify-center gap-2 flex-nowrap min-w-max">
                       <button
                         onClick={() => onAssignClick(user.id)}
-                        className="p-2.5 bg-[#0f172a] border border-gray-800 text-gray-500 rounded-xl hover:text-[#00f2aa] hover:border-[#00f2aa]/30 transition-all"
-                        title="DEPLOY TEST"
+                        className={`inline-flex items-center gap-1 px-3 py-1.5 border rounded-md text-xs font-bold uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors duration-200 whitespace-nowrap ${isLightTheme ? 'border-gray-300 text-gray-600 hover:border-emerald-500 hover:text-emerald-600' : 'border-[#2a364a] text-gray-300 hover:border-emerald-500 hover:text-emerald-500'}`}
+                        title="Assign Test"
                       >
-                        <FaShare className="w-3.5 h-3.5" />
+                        <FaShare className="w-3 h-3" />
+                        Assign
                       </button>
-                      <button 
+                      <button
                         onClick={() => onEdit(user)}
-                        className="p-2.5 bg-[#0f172a] border border-gray-800 text-gray-500 rounded-xl hover:text-white hover:border-gray-700 transition-all"
-                        title="MODIFY IDENTITY"
+                        className={`inline-flex items-center gap-1 px-3 py-1.5 border rounded-md text-xs font-bold uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors duration-200 whitespace-nowrap ${isLightTheme ? 'border-gray-300 text-gray-600 hover:border-emerald-500 hover:text-emerald-600' : 'border-[#2a364a] text-gray-300 hover:border-emerald-500 hover:text-emerald-500'}`}
+                        title="Edit User"
                       >
-                        <FaEdit className="w-3.5 h-3.5" />
+                        <FaEdit className="w-3 h-3" />
+                        Edit
                       </button>
-                      <button 
-                        onClick={() => onReport(user.id)}
-                        className="p-2.5 bg-[#0f172a] border border-gray-800 text-gray-500 rounded-xl hover:text-[#00f2aa] hover:border-[#00f2aa]/30 transition-all"
-                        title="INTEL REPORT"
-                      >
-                        <FaFileAlt className="w-3.5 h-3.5" />
-                      </button>
-                      <div className="w-px h-6 bg-gray-800 mx-1"></div>
-                      <button 
+                      <button
                         onClick={() => onDelete(user.id)}
-                        className="p-2.5 bg-[#0f172a] border border-gray-800 text-gray-500 rounded-xl hover:text-red-500 hover:border-red-900/30 transition-all"
-                        title="TERMINATE ACCESS"
+                        className={`inline-flex items-center gap-1 px-3 py-1.5 border rounded-md text-xs font-bold uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors duration-200 whitespace-nowrap ${isLightTheme ? 'border-gray-300 text-gray-600 hover:border-emerald-500 hover:text-emerald-600' : 'border-[#2a364a] text-gray-300 hover:border-emerald-500 hover:text-emerald-500'}`}
+                        title="Delete User"
                       >
-                        <FaTrash className="w-3.5 h-3.5" />
+                        <FaTrash className="w-3 h-3" />
+                        Delete
+                      </button>
+                      <button
+                        onClick={() => onReport(user.id)}
+                        className={`inline-flex items-center gap-1 px-3 py-1.5 border rounded-md text-xs font-bold uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors duration-200 whitespace-nowrap ${isLightTheme ? 'border-gray-300 text-gray-600 hover:border-emerald-500 hover:text-emerald-600' : 'border-[#2a364a] text-gray-300 hover:border-emerald-500 hover:text-emerald-500'}`}
+                        title="View Reports"
+                      >
+                        <FaFileAlt className="w-3 h-3" />
+                        Report
                       </button>
                     </div>
                   </td>
@@ -428,13 +327,11 @@ export default function UsersTable({
 
         {/* Empty State */}
         {pageData.length === 0 && (
-          <div className="text-center py-24 bg-[#0f172a]/20">
-            <div className="w-20 h-20 bg-[#1e293b] rounded-full flex items-center justify-center mx-auto mb-6 border border-gray-800">
-              <FaFrown className="w-10 h-10 text-gray-700" />
-            </div>
-            <h3 className="text-xl font-black text-white uppercase tracking-tighter">No Operatives Located</h3>
-            <p className="mt-2 text-[10px] text-gray-500 font-bold uppercase tracking-[0.3em] max-w-xs mx-auto">
-              {search ? 'Refine your radar search parameters' : 'The system contains no registered users at this time'}
+          <div className="text-center py-12">
+            <FaFrown className={`w-16 h-16 mx-auto ${isLightTheme ? 'text-gray-300' : 'text-gray-700'} mb-4`} />
+            <h3 className={`mt-4 text-lg font-medium ${isLightTheme ? 'text-gray-900' : 'text-white'}`}>No users found</h3>
+            <p className={`mt-2 text-sm ${isLightTheme ? 'text-gray-500' : 'text-gray-500'} max-w-md mx-auto`}>
+              {search ? 'Try adjusting your search terms' : 'No users available in the system'}
             </p>
           </div>
         )}
@@ -442,23 +339,27 @@ export default function UsersTable({
 
       {/* Pagination */}
       {pageData.length > 0 && (
-        <div className="px-8 py-6 border-t border-gray-800 bg-[#0f172a]/40 backdrop-blur-md">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-            <div className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">
-              Sectors <span className="text-white">{(current - 1) * pageSize + 1}</span> — <span className="text-white">{Math.min(current * pageSize, total)}</span> of <span className="text-[#00f2aa]">{total}</span>
+        <div className={`px-4 lg:px-6 py-4 border-t ${isLightTheme ? 'border-emerald-200 bg-emerald-50/50' : 'border-emerald-500 bg-[#09090B]'}`}>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className={`text-sm ${isLightTheme ? 'text-gray-500' : 'text-gray-500'}`}>
+              Showing <span className={`font-medium ${isLightTheme ? 'text-gray-900' : 'text-white'}`}>{(current - 1) * pageSize + 1}</span> to{' '}
+              <span className={`font-medium ${isLightTheme ? 'text-gray-900' : 'text-white'}`}>
+                {Math.min(current * pageSize, total)}
+              </span>{' '}
+              of <span className={`font-medium ${isLightTheme ? 'text-gray-900' : 'text-white'}`}>{total}</span> results
             </div>
-            
-            <div className="flex items-center gap-3">
+
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={current === 1}
-                className="px-5 py-2.5 bg-[#0f172a] border border-gray-800 rounded-xl text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-white hover:border-gray-600 disabled:opacity-30 transition-all flex items-center gap-3"
+                className={`px-3 lg:px-4 py-2 border rounded-lg text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-200 flex items-center gap-2 ${isLightTheme ? 'border-emerald-300 text-gray-600 bg-white hover:bg-emerald-50' : 'border-emerald-500 text-gray-300 bg-[#18181B] hover:bg-[#202025]'}`}
               >
                 <FaChevronLeft className="w-3 h-3" />
-                Prev
+                <span className="hidden sm:inline">Previous</span>
               </button>
               
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 {Array.from({ length: totalPages }, (_, i) => i + 1)
                   .filter(p => p === 1 || p === totalPages || Math.abs(p - current) <= 1)
                   .map((pageNum, index, array) => {
@@ -467,26 +368,28 @@ export default function UsersTable({
                       <React.Fragment key={pageNum}>
                         <button
                           onClick={() => setPage(pageNum)}
-                          className={`w-10 h-10 rounded-xl text-[10px] font-black uppercase transition-all border ${
+                          className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200 min-w-[40px] ${
                             pageNum === current
-                              ? 'bg-[#00f2aa] text-[#0f172a] border-[#00f2aa] shadow-[0_0_15px_rgba(0,242,170,0.3)]'
-                              : 'bg-[#0f172a] text-gray-500 border-gray-800 hover:border-gray-600 hover:text-white'
+                              ? 'bg-emerald-600 text-white shadow-sm'
+                              : (isLightTheme ? 'text-gray-600 hover:bg-gray-100' : 'text-gray-400 hover:bg-[#202025]')
                           }`}
                         >
                           {pageNum}
                         </button>
-                        {showEllipsis && <span className="text-gray-700 font-black px-1">...</span>}
+                        {showEllipsis && (
+                          <span className={`px-1 ${isLightTheme ? 'text-gray-400' : 'text-gray-600'}`}>...</span>
+                        )}
                       </React.Fragment>
                     );
                   })}
               </div>
-
+              
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={current === totalPages}
-                className="px-5 py-2.5 bg-[#0f172a] border border-gray-800 rounded-xl text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-white hover:border-gray-600 disabled:opacity-30 transition-all flex items-center gap-3"
+                className={`px-3 lg:px-4 py-2 border rounded-lg text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-200 flex items-center gap-2 ${isLightTheme ? 'border-emerald-300 text-gray-600 bg-white hover:bg-emerald-50' : 'border-emerald-500 text-gray-300 bg-[#18181B] hover:bg-[#202025]'}`}
               >
-                Next
+                <span className="hidden sm:inline">Next</span>
                 <FaChevronRight className="w-3 h-3" />
               </button>
             </div>

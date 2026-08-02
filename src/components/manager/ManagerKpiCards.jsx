@@ -37,6 +37,8 @@ export function KpiCard({ title, value, delta, note, icon, trend, index, onClick
     <div 
       onClick={onClick}
       className={`bg-gradient-to-br ${gradients[index % gradients.length]} rounded-2xl shadow-sm border p-6 hover:shadow-lg transition-all duration-300 group ${onClick ? 'cursor-pointer hover:-translate-y-1' : ''} flex flex-col h-full`} 
+      data-aos="fade-up" 
+      data-aos-delay={(index % 4) * 100}
     >
       <div className="flex items-center justify-between mb-4">
         <div className="text-sm font-semibold text-gray-700 tracking-wide">{title}</div>
