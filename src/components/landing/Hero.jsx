@@ -28,9 +28,9 @@ export const Hero = () => {
           <p
             data-aos="fade-up"
             data-aos-delay="150"
-            className="text-lg md:text-xl lg:text-2xl text-white/90 font-bold"
+            className="text-lg md:text-xl lg:text-2xl text-white/90 font-light"
           >
-            ​
+            Discover the right problem<br className="sm:hidden" /> before you invest
           </p>
         </div>
 

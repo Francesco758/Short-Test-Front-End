@@ -26,12 +26,12 @@ export const StickyHeader = () => {
                 Augmented Intelligence
               </span>{" "}
               company: we study and design interaction between artificial and
-              human intelligence to enhance both.
+              human intelligence to enhance both
             </p>
             <p className="text-sm leading-relaxed mt-2">
               shorTest is the synthesis of our long journey between
               neuro-scientific research and management of end-to-end
-              communication and innovation projects for main organizations.
+              communication and innovation projects for main organizations
             </p>
           </TooltipContent>
         </Tooltip>

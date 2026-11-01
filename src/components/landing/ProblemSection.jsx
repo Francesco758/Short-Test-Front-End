@@ -18,14 +18,23 @@ export const ProblemSection = () => {
             <p className="text-sm md:text-base uppercase tracking-widest text-emerald-400 mb-6">
               The hard problem
             </p>
-            <p className="text-2xl md:text-3xl lg:text-4xl font-normal text-foreground max-w-none mx-auto">
-              More Speed, Less Change.
+            <p id="sentence-1" className="text-2xl md:text-3xl lg:text-4xl font-normal text-foreground max-w-none mx-auto scroll-mt-20">
+              <a
+                href="#footnote-1"
+                onClick={(e) => {
+                  e.preventDefault();
+                  document.getElementById("footnote-1")?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="hover:text-emerald-400 transition-colors cursor-pointer"
+              >
+                More Speed, Less Change
+              </a>
               <sup className="text-emerald-400 text-sm md:text-base ml-0.5">
                 1
               </sup>
             </p>
             <p className="text-lg md:text-xl text-foreground/70 italic max-w-none mx-auto mt-2">
-              For people and organizations.
+              For people and organizations
             </p>
           </div>
 
@@ -58,7 +67,7 @@ export const ProblemSection = () => {
           >
             <p className="text-2xl md:text-3xl lg:text-4xl text-foreground max-w-3xl mx-auto leading-snug">
               Training and innovation remain isolated. Passive use of AI
-              reinforces our habits.
+              reinforces our habits
             </p>
           </div>
 
@@ -91,7 +100,7 @@ export const ProblemSection = () => {
           >
             <h2 className="text-[1.75rem] md:text-[2.75rem] lg:text-[3.5rem] leading-[1.1] text-foreground font-bold tracking-tight">
               <span className="text-emerald-400">shorTest</span> turns change
-              into a habit.
+              into a habit
             </h2>
             <p className="text-2xl md:text-3xl lg:text-4xl text-foreground mt-6 max-w-3xl mx-auto">
               Powered by Critical AI™ to help people think better{" "}

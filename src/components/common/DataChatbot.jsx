@@ -39,6 +39,7 @@ function detectLanguage(text) {
 
 export default function DataChatbot({
   onSendMessage,
+  onStreamMessage = null, // Optional: (payload) => { ... }, called with { question, history, signal, onChunk }. If provided, streaming is used.
   placeholder = "Ask me anything about your data...",
   title = "Data Assistant",
   className = "",
@@ -57,6 +58,10 @@ export default function DataChatbot({
   maxMessages = 50, // Maximum messages to keep in history
   autoClearOnRefresh = true, // Automatically clear chat on page refresh
   theme = "dark", // Theme: 'dark' or 'light'
+  conversationId = null, // Optional persisted conversation id (server-side)
+  onConversationIdChange = null, // (conversationId, conversationTitle) => void
+  initialMessages = null, // Optional array of persisted messages to load on mount
+  onClearConversation = null, // () => void — clear the current persisted conversation
   suggestedQuestions = [
     "Which problems are most frequent?",
     "Which problems should we focus on first?",
@@ -113,7 +118,24 @@ export default function DataChatbot({
         console.warn('Failed to clear conversation history:', err);
       }
     }
-    
+
+    // Load persisted server-side conversation (takes precedence over storageKey).
+    if (Array.isArray(initialMessages) && initialMessages.length > 0) {
+      const loaded = initialMessages.map((m, idx) => ({
+        id: `persisted-${idx}-${m.id ?? idx}`,
+        type: m.role === 'user' ? 'user' : 'bot',
+        content: m.content || '',
+        timestamp: m.createdAt ? new Date(m.createdAt) : new Date(),
+        chartSpec: m.chartSpec || null,
+        imageUrl: m.imageUrl || null,
+        imageSize: m.imageSize || null,
+        hasVisualComponents: !!(m.chartSpec || m.imageUrl),
+        source: m.source || null,
+        metadata: m.metadata || null
+      }));
+      setMessages(loaded);
+    }
+
     // Cleanup function to clear messages when component unmounts
     return () => {
       if (storageKey && autoClearOnRefresh) {
@@ -124,7 +146,8 @@ export default function DataChatbot({
         }
       }
     };
-  }, [storageKey, autoClearOnRefresh]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storageKey, autoClearOnRefresh, initialMessages]);
 
   const suppressFullHeightInputChrome = (inputEl) => {
     if (!fullHeightQuery || !inputEl) return;
@@ -254,8 +277,70 @@ export default function DataChatbot({
     abortControllerRef.current = controller;
 
     try {
+      // Streaming path: consume SSE tokens as they arrive for a real-time experience.
+      if (typeof onStreamMessage === 'function') {
+        const botMessageId = Date.now() + 1;
+        const botMessage = {
+          id: botMessageId,
+          type: 'bot',
+          content: '',
+          timestamp: new Date(),
+          chartSpec: null,
+          imageUrl: null,
+          hasVisualComponents: false
+        };
+        setMessages(prev => [...prev, botMessage]);
+
+        const onChunk = (chunk) => {
+          setMessages(prev =>
+            prev.map(msg =>
+              msg.id === botMessageId
+                ? { ...msg, content: (msg.content || '') + chunk }
+                : msg
+            )
+          );
+        };
+
+        const done = await onStreamMessage({
+          question: messageToSend,
+          history,
+          signal: controller.signal,
+          onChunk,
+          conversationId: conversationId || undefined
+        });
+
+        setIsLoading(false);
+        streamingStarted = true;
+
+        // Propagate the persisted conversation id/title to the parent.
+        if (typeof onConversationIdChange === 'function') {
+          const nextId = done?.conversationId || done?.conversation_id || conversationId;
+          if (nextId) onConversationIdChange(nextId, done?.conversationTitle || done?.title || null);
+        }
+
+        // Finalize with any metadata/visual components from the done event.
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === botMessageId
+              ? {
+                  ...msg,
+                  chartSpec: done?.chartSpec || msg.chartSpec,
+                  imageUrl: done?.imageUrl || msg.imageUrl,
+                  imageSize: done?.imageSize,
+                  hasVisualComponents: !!(done?.chartSpec || done?.imageUrl),
+                  source: done?.source || msg.source,
+                  metadata: done?.metadata || msg.metadata
+                }
+              : msg
+          )
+        );
+
+        setTimeout(() => focusQueryInput(), 0);
+        return;
+      }
+
       // Call the provided message handler with question and conversation history
-      const response = await onSendMessage({ question: messageToSend, history, signal: controller.signal });
+      const response = await onSendMessage({ question: messageToSend, history, signal: controller.signal, conversationId: conversationId || undefined });
       const normalizedContent =
         typeof response?.answer === 'string'
           ? response.answer
@@ -284,6 +369,13 @@ export default function DataChatbot({
       setMessages(prev => [...prev, botMessage]);
       setIsLoading(false);
       streamingStarted = true;
+
+      // Propagate the persisted conversation id/title to the parent.
+      if (typeof onConversationIdChange === 'function') {
+        const nextId = response?.conversationId || response?.conversation_id || conversationId;
+        if (nextId) onConversationIdChange(nextId, response?.conversationTitle || response?.title || null);
+      }
+
       animateBotMessageContent(botMessageId, normalizedContent, () => {
         setTimeout(() => focusQueryInput(), 0);
       });
@@ -324,6 +416,19 @@ export default function DataChatbot({
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
+    }
+  };
+
+  const handleClearConversation = () => {
+    setMessages([]);
+    if (typeof onConversationStateChange === 'function') {
+      onConversationStateChange(false);
+    }
+    if (typeof onConversationIdChange === 'function') {
+      onConversationIdChange(null, null);
+    }
+    if (typeof onClearConversation === 'function') {
+      onClearConversation();
     }
   };
 
@@ -428,6 +533,20 @@ export default function DataChatbot({
           >
             {isLightTheme ? 'turn data into action' : 'turn change data into action!'}
           </p>
+          <div className="flex-1" />
+          {typeof onClearConversation === 'function' && messages.length > 0 && (
+            <button
+              onClick={handleClearConversation}
+              className={`shrink-0 text-[10px] sm:text-xs uppercase tracking-widest font-bold px-3 py-1.5 rounded-lg border transition ${
+                isLightTheme
+                  ? 'text-[#0F172A] border-[#0B3D2E] hover:bg-[#0B3D2E] hover:text-white'
+                  : 'text-gray-400 border-[#2e2e36] hover:border-red-500/50 hover:text-red-400'
+              }`}
+              title="Start a new conversation"
+            >
+              NEW
+            </button>
+          )}
         </div>
       )}
       {/* Messages */}

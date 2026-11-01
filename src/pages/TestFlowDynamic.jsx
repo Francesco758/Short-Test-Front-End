@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -19,12 +19,16 @@ import {
   FaChartLine
 } from 'react-icons/fa';
 import { api } from '../utils/api';
+import { AuthContext } from '../context/AuthContext';
 import TopNav from '../components/layout/TopNav';
 import ChartRenderer from '../components/ui/ChartRenderer';
 import KPIDetailsModal from '../components/admin/KPIDetailsModal';
+import StartShortTestModal from '../components/user/StartShortTestModal';
 
 export default function TestFlowDynamic() {
   const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
+  const userName = user?.name || '';
   const [assignedTests, setAssignedTests] = useState([]);
   const [allTests, setAllTests] = useState([]);
   const [selectedTest, setSelectedTest] = useState(null);
@@ -48,6 +52,13 @@ export default function TestFlowDynamic() {
   const [teamActionLoading, setTeamActionLoading] = useState(false);
   const [likeLoading, setLikeLoading] = useState({});
   const [briefType, setBriefType] = useState(null);
+
+  // Self-serve "Start a shorTest"
+  const [availableShorTests, setAvailableShorTests] = useState([]);
+  const [shorTestGate, setShorTestGate] = useState({ pendingCount: 0, pendingLimit: 5, canStartNew: true });
+  const [showStartShortTestModal, setShowStartShortTestModal] = useState(false);
+  const [shorTestLoading, setShorTestLoading] = useState(false);
+  const [launchingShorTest, setLaunchingShorTest] = useState(false);
   
   // Success notification state
   const [successNotification, setSuccessNotification] = useState({
@@ -58,13 +69,10 @@ export default function TestFlowDynamic() {
   const [reportReady, setReportReady] = useState(false);
   const [showCompletionBanner, setShowCompletionBanner] = useState(false);
   const [typingStates, setTypingStates] = useState({});
-  const [showFullExplanation, setShowFullExplanation] = useState(false);
-  const [explanationOverflow, setExplanationOverflow] = useState(false);
   const typingTimerRef = useRef(null);
   const messageIndexRef = useRef(0);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
-  const explanationRef = useRef(null);
 
   const [theme, setTheme] = useState(() => localStorage.getItem('observatoryTheme') === 'light' ? 'light' : 'dark');
   const toggleTheme = () => {
@@ -90,6 +98,7 @@ export default function TestFlowDynamic() {
       fetchCKPIMetrics();
       fetchTeamProblems();
       fetchTeamSolutions();
+      fetchAvailableShorTests();
     }, 2500);
   };
 
@@ -98,6 +107,7 @@ export default function TestFlowDynamic() {
     fetchCKPIMetrics();
     fetchTeamProblems();
     fetchTeamSolutions();
+    fetchAvailableShorTests();
   }, []);
 
 
@@ -155,7 +165,7 @@ export default function TestFlowDynamic() {
       startTest(result.userTestId);
     } catch (err) {
       console.error('Failed to start problem test:', err);
-      setError(err?.error || err?.message || 'Failed to start team challenge');
+      setError(err?.error || err?.message || 'Failed to start problem');
     } finally {
       setTeamActionLoading(false);
     }
@@ -179,8 +189,80 @@ export default function TestFlowDynamic() {
     }
   };
 
-  useEffect(() => {
-    scrollToBottom();
+  // ==================== SELF-SERVE "START A shorTEST" ====================
+
+  // Standard shorTests the user may start on their own, plus the pending-test gate.
+  // Never throws — same pattern as the other dashboard fetchers.
+  const fetchAvailableShorTests = async () => {
+    try {
+      const data = await api('/api/user/tests/available');
+      const tests = Array.isArray(data?.tests) ? data.tests : [];
+      setAvailableShorTests(tests);
+      setShorTestGate({
+        pendingCount: data?.pendingCount ?? 0,
+        pendingLimit: data?.pendingLimit ?? 5,
+        canStartNew: data?.canStartNew !== false
+      });
+      return { tests, canStartNew: data?.canStartNew !== false, error: null };
+    } catch (err) {
+      console.error('Failed to fetch available shorTests:', err);
+      return { tests: [], canStartNew: true, error: err };
+    }
+  };
+
+  // Click on the "Start a shorTest" tile: start straight away when there is
+  // nothing to choose (a single shorTest with nothing pending), otherwise open
+  // the selection / pending pop-up.
+  const handleOpenStartShortTest = async () => {
+    if (shorTestLoading || launchingShorTest) return;
+    setError(null);
+    setShorTestLoading(true);
+    try {
+      const { tests, canStartNew, error: fetchError } = await fetchAvailableShorTests();
+
+      if (fetchError) {
+        setError(fetchError?.error || fetchError?.message || 'Failed to load available shorTests');
+        return;
+      }
+
+      const onlyTest = tests.length === 1 ? tests[0] : null;
+      if (onlyTest && onlyTest.pendingCount === 0 && canStartNew) {
+        await launchShorTest(onlyTest.testId);
+        return;
+      }
+
+      setShowStartShortTestModal(true);
+    } finally {
+      setShorTestLoading(false);
+    }
+  };
+
+  // Launch a brand new shorTest: the backend creates the assignment and the
+  // existing conversation flow then runs exactly like a manager-assigned test.
+  const launchShorTest = async (testId) => {
+    try {
+      setLaunchingShorTest(true);
+      setError(null);
+      const result = await api('/api/user/tests/launch', {
+        method: 'POST',
+        body: JSON.stringify({ testId, source: 'web' })
+      });
+
+      setShowStartShortTestModal(false);
+      setSelectedTest({ id: result.userTestId, test: { title: result.title } });
+      await startTest(result.userTestId, { source: 'web' });
+      fetchAssignedTests();
+      fetchAvailableShorTests();
+    } catch (err) {
+      console.error('Failed to start shorTest:', err);
+      // The pop-up stays open so the reason (e.g. pending limit) remains visible
+      setError(err?.error || err?.message || 'Failed to start shorTest');
+    } finally {
+      setLaunchingShorTest(false);
+    }
+  };
+
+  useEffect(() => {    scrollToBottom();
   }, [messages, typingStates]);
 
   useEffect(() => {
@@ -259,13 +341,6 @@ export default function TestFlowDynamic() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  useEffect(() => {
-    const el = explanationRef.current;
-    if (el) {
-      setExplanationOverflow(el.scrollHeight > el.clientHeight);
-    }
-  }, [ckpiMetrics, allTests]);
-
   const fetchAssignedTests = async () => {
     try {
       setLoading(true);
@@ -281,14 +356,14 @@ export default function TestFlowDynamic() {
     }
   };
 
-  const startTest = async (userTestId) => {
+  const startTest = async (userTestId, launchOptions = {}) => {
     try {
       setStarting(true);
       setError(null);
       
       const result = await api('/api/conversation/start', {
         method: 'POST',
-        body: JSON.stringify({ userTestId })
+        body: JSON.stringify({ userTestId, ...launchOptions })
       });
 
       setTestAttemptId(result.testAttemptId);
@@ -533,12 +608,20 @@ export default function TestFlowDynamic() {
            .dot-flash {
              animation: dotFlash 1.2s ease-in-out infinite;
            }
-           .line-clamp-3 {
-             display: -webkit-box;
-             -webkit-line-clamp: 3;
-             -webkit-box-orient: vertical;
-             overflow: hidden;
-           }
+            .explanation-scroll {
+              scrollbar-width: none;
+              -ms-overflow-style: none;
+            }
+            .explanation-scroll::-webkit-scrollbar {
+              display: none;
+            }
+            .explanation-scroll:hover {
+              scrollbar-width: none;
+              -ms-overflow-style: none;
+            }
+            .explanation-scroll:hover::-webkit-scrollbar {
+              display: none;
+            }
            @media (max-width: 640px) {
              .change-kpi-title {
                text-align: center !important;
@@ -565,7 +648,7 @@ export default function TestFlowDynamic() {
         {/* Header */}
         <header className="flex items-center justify-between px-3 sm:px-4 lg:px-5 py-3 sm:py-4">
           <div className={`text-[10px] sm:text-xs font-medium tracking-[0.3em] uppercase ${isLightTheme ? 'text-[#334155]' : 'text-gray-500'}`}>
-            USER DASHBOARD
+            {userName ? `${userName} DASHBOARD` : 'USER DASHBOARD'}
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
             <button
@@ -581,7 +664,6 @@ export default function TestFlowDynamic() {
           <div className="w-full space-y-4 sm:space-y-5">
             
             {/* Change KPI Card */}
-            {allTests.length > 0 && (
               <div className={`border rounded-xl p-4 sm:p-5 lg:p-6 shadow-xl ${isLightTheme ? 'bg-[#22C58B] border-emerald-700' : 'bg-[#18181B] border-emerald-500'}`}>
                 {(() => {
                   const completed = allTests.filter(t => t.status === 'COMPLETED' && t.report);
@@ -715,58 +797,70 @@ export default function TestFlowDynamic() {
                       {/* Explanation (rightmost) */}
                       <div className="flex flex-col justify-start h-full pt-0.5 pl-4">
                         <h3 className={`explanation-title text-[22px] sm:text-[26px] lg:text-[30px] font-medium italic mb-3 ${isLightTheme ? 'text-gray-900' : 'text-white'}`}>EXPLANATION</h3>
-                        <div className="relative">
-                          <p
-                            ref={explanationRef}
-                            className={`explanation-text text-[12px] sm:text-[13px] lg:text-[14px] leading-relaxed ${isLightTheme ? 'text-gray-900' : 'text-gray-400'} ${showFullExplanation ? '' : 'line-clamp-3'}`}
-                          >
+                        <div className="explanation-scroll relative overflow-y-auto max-h-[180px] sm:max-h-[200px] lg:max-h-[220px] pr-1">
+                          <p className={`explanation-text text-[12px] sm:text-[13px] lg:text-[14px] leading-relaxed ${isLightTheme ? 'text-gray-900' : 'text-gray-400'}`}>
                             {ckpiMetrics?.globalSummary || latestReport?.summary || (completed.length > 0 ? 'Evaluation completed.' : 'Complete your first assessment to see your evaluation.')}
                           </p>
-                          {explanationOverflow && (
-                            <button
-                              onClick={() => setShowFullExplanation(!showFullExplanation)}
-                              className={`text-[11px] sm:text-xs font-semibold mt-1 ${isLightTheme ? 'text-emerald-700 hover:text-emerald-800' : 'text-emerald-400 hover:text-emerald-300'}`}
-                            >
-                              {showFullExplanation ? 'Show less' : 'Read more'}
-                            </button>
-                          )}
                         </div>
                       </div>
                     </div>
                   );
                 })()}
               </div>
-            )}
 
 
 
-            {/* Team Problems & Solutions */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 items-stretch">
-              {/* Join Team Problem */}
+            {/* Start a shorTest / Problems & Solutions */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 items-stretch">
+              {/* Start a shorTest */}
+              <button
+                onClick={handleOpenStartShortTest}
+                disabled={shorTestLoading || launchingShorTest}
+                className={`border rounded-xl p-4 sm:p-5 lg:p-6 shadow-xl text-left transition-colors cursor-pointer h-full flex flex-col justify-center min-h-[96px] sm:min-h-[108px] disabled:opacity-60 disabled:cursor-wait ${isLightTheme ? 'bg-white border-emerald-700 hover:bg-gray-50' : 'bg-[#22C58B] border-emerald-500 hover:bg-[#1a9e6e]'}`}
+              >
+                <h3 className={`text-lg sm:text-xl font-extrabold uppercase tracking-wide ${isLightTheme ? 'text-[#0F172A]' : 'text-white'}`}>
+                  Start a shorTest
+                </h3>
+                {shorTestLoading || launchingShorTest ? (
+                  <p className={`text-xs sm:text-sm mt-2 ${isLightTheme ? 'text-gray-500' : 'text-white/80'}`}>
+                    Loading...
+                  </p>
+                ) : !shorTestGate.canStartNew ? (
+                  <p className={`text-xs sm:text-sm mt-2 ${isLightTheme ? 'text-amber-700' : 'text-amber-300'}`}>
+                    Complete one of your {shorTestGate.pendingCount} pending tests
+                  </p>
+                ) : availableShorTests.length > 0 ? (
+                  <p className={`text-xs sm:text-sm mt-2 ${isLightTheme ? 'text-gray-500' : 'text-white/80'}`}>
+                    {availableShorTests.length} shorTest{availableShorTests.length !== 1 ? 's' : ''} available
+                  </p>
+                ) : null}
+              </button>
+
+              {/* Join a Problem */}
               <button
                 onClick={() => setShowProblemsModal(true)}
-                className={`border rounded-xl p-4 sm:p-5 lg:p-6 shadow-xl text-center transition-colors cursor-pointer h-full flex flex-col justify-center min-h-[96px] sm:min-h-[108px] ${isLightTheme ? 'bg-white border-emerald-700 hover:bg-gray-50' : 'bg-[#22C58B] border-emerald-500 hover:bg-[#1a9e6e]'}`}
+                className={`border rounded-xl p-4 sm:p-5 lg:p-6 shadow-xl text-left transition-colors cursor-pointer h-full flex flex-col justify-center min-h-[96px] sm:min-h-[108px] ${isLightTheme ? 'bg-white border-emerald-700 hover:bg-gray-50' : 'bg-[#22C58B] border-emerald-500 hover:bg-[#1a9e6e]'}`}
               >
-                <h3 className={`text-sm sm:text-base font-extrabold uppercase tracking-wider ${isLightTheme ? 'text-[#0F172A]' : 'text-white'}`}>
-                  JOIN TEAM'S CHALLANGES
+                <h3 className={`text-lg sm:text-xl font-extrabold uppercase tracking-wide ${isLightTheme ? 'text-[#0F172A]' : 'text-white'}`}>
+                  Join a Problem
                 </h3>
                 {teamProblems.length > 0 && (
-                  <p className={`text-[10px] sm:text-xs mt-2 ${isLightTheme ? 'text-gray-500' : 'text-white/80'}`}>
-                    {teamProblems.length} challenge{teamProblems.length !== 1 ? 's' : ''} available
+                  <p className={`text-xs sm:text-sm mt-2 ${isLightTheme ? 'text-gray-500' : 'text-white/80'}`}>
+                    {teamProblems.length} problem{teamProblems.length !== 1 ? 's' : ''} available
                   </p>
                 )}
               </button>
 
-              {/* Improve Team Solution */}
+              {/* Improve a Solution */}
               <button
                 onClick={() => setShowSolutionsModal(true)}
-                className={`border rounded-xl p-4 sm:p-5 lg:p-6 shadow-xl text-center transition-colors cursor-pointer h-full flex flex-col justify-center min-h-[96px] sm:min-h-[108px] ${isLightTheme ? 'bg-white border-emerald-700 hover:bg-gray-50' : 'bg-[#22C58B] border-emerald-500 hover:bg-[#1a9e6e]'}`}
+                className={`border rounded-xl p-4 sm:p-5 lg:p-6 shadow-xl text-left transition-colors cursor-pointer h-full flex flex-col justify-center min-h-[96px] sm:min-h-[108px] ${isLightTheme ? 'bg-white border-emerald-700 hover:bg-gray-50' : 'bg-[#22C58B] border-emerald-500 hover:bg-[#1a9e6e]'}`}
               >
-                <h3 className={`text-sm sm:text-base font-extrabold uppercase tracking-wider ${isLightTheme ? 'text-[#0F172A]' : 'text-white'}`}>
-                  IMPROVE TEAM'S SOLUTION
+                <h3 className={`text-lg sm:text-xl font-extrabold uppercase tracking-wide ${isLightTheme ? 'text-[#0F172A]' : 'text-white'}`}>
+                  Improve a Solution
                 </h3>
                 {teamSolutions.length > 0 && (
-                  <p className={`text-[10px] sm:text-xs mt-2 ${isLightTheme ? 'text-gray-500' : 'text-white/80'}`}>
+                  <p className={`text-xs sm:text-sm mt-2 ${isLightTheme ? 'text-gray-500' : 'text-white/80'}`}>
                     {teamSolutions.length} solution{teamSolutions.length !== 1 ? 's' : ''} available
                   </p>
                 )}
@@ -807,7 +901,8 @@ export default function TestFlowDynamic() {
                       <div className="flex items-center gap-2">
                         <span className={`w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full flex-shrink-0 ${isLightTheme ? 'dot-flash' : 'bg-emerald-500 animate-pulse'}`} />
                         <div className={`text-lg sm:text-xl font-extrabold uppercase tracking-wide ${isLightTheme ? 'text-[#0F172A]' : 'text-emerald-500'}`}>
-                          {test.status === 'IN_PROGRESS' ? 'resume' : 'start new test'}
+                          {test.status === 'IN_PROGRESS' ? 'resume' : 'start'}{' '}
+                          {test.source === 'self' ? 'your test' : 'assigned test'}
                         </div>
                       </div>
                     </div>
@@ -834,17 +929,17 @@ export default function TestFlowDynamic() {
           </div>
         </main>
 
-        {/* Team Problems Modal */}
+        {/* Problems Modal */}
         {showProblemsModal && (
           <div className={`fixed inset-0 ${isLightTheme ? 'bg-black/50' : 'bg-black/80'} flex items-center justify-center z-[9999] p-4`}>
             <div className={`${isLightTheme ? 'bg-white' : 'bg-[#18181B]'} border rounded-xl ${isLightTheme ? 'border-emerald-700' : 'border-emerald-500'} max-w-2xl w-full overflow-hidden shadow-xl`}>
               <div className={`px-6 py-5 border-b ${isLightTheme ? 'border-gray-200' : 'border-gray-700'} flex items-center justify-between`}>
-                <h3 className={`text-sm font-extrabold uppercase tracking-wider ${isLightTheme ? 'text-[#0F172A]' : 'text-white'}`}>JOIN TEAM'S CHALLENGES</h3>
+                <h3 className={`text-sm font-extrabold tracking-wider ${isLightTheme ? 'text-[#0F172A]' : 'text-white'}`}>Join a Problem</h3>
                 <button onClick={() => setShowProblemsModal(false)} className={`text-lg leading-none ${isLightTheme ? 'text-gray-500 hover:text-black' : 'text-gray-400 hover:text-white'}`}>&times;</button>
               </div>
               <div className="p-6 max-h-[480px] overflow-y-auto space-y-3">
                 {teamProblems.length === 0 ? (
-                  <p className={`text-xs text-center py-6 ${isLightTheme ? 'text-gray-500' : 'text-gray-400'}`}>No team problems identified yet.</p>
+                  <p className={`text-xs text-center py-6 ${isLightTheme ? 'text-gray-500' : 'text-gray-400'}`}>No problems identified yet.</p>
                 ) : (
                   teamProblems.map(problem => (
                     <div key={problem.id} className={`flex items-center justify-between gap-4 p-4 rounded-xl border transition-colors ${isLightTheme ? 'border-emerald-700 hover:bg-gray-50' : 'border-emerald-500 hover:bg-[#202025]'}`}>
@@ -857,7 +952,7 @@ export default function TestFlowDynamic() {
                         disabled={teamActionLoading}
                         className={`px-4 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl border transition-colors disabled:opacity-50 whitespace-nowrap flex-shrink-0 ${isLightTheme ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700' : 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700'}`}
                       >
-                        {teamActionLoading ? '...' : 'Take the Challenge'}
+                        {teamActionLoading ? '...' : 'Work on this Problem'}
                       </button>
                     </div>
                   ))
@@ -872,12 +967,12 @@ export default function TestFlowDynamic() {
           <div className={`fixed inset-0 ${isLightTheme ? 'bg-black/50' : 'bg-black/80'} flex items-center justify-center z-[9999] p-4`}>
             <div className={`${isLightTheme ? 'bg-white' : 'bg-[#18181B]'} border rounded-xl ${isLightTheme ? 'border-emerald-700' : 'border-emerald-500'} max-w-2xl w-full overflow-hidden shadow-xl`}>
               <div className={`px-6 py-5 border-b ${isLightTheme ? 'border-gray-200' : 'border-gray-700'} flex items-center justify-between`}>
-                <h3 className={`text-sm font-extrabold uppercase tracking-wider ${isLightTheme ? 'text-[#0F172A]' : 'text-white'}`}>IMPROVE TEAM'S SOLUTION</h3>
+                <h3 className={`text-sm font-extrabold tracking-wider ${isLightTheme ? 'text-[#0F172A]' : 'text-white'}`}>Improve a Solution</h3>
                 <button onClick={() => setShowSolutionsModal(false)} className={`text-lg leading-none ${isLightTheme ? 'text-gray-500 hover:text-black' : 'text-gray-400 hover:text-white'}`}>&times;</button>
               </div>
               <div className="p-6 max-h-[480px] overflow-y-auto space-y-3">
                 {teamSolutions.length === 0 ? (
-                  <p className={`text-xs text-center py-6 ${isLightTheme ? 'text-gray-500' : 'text-gray-400'}`}>No team solutions yet.</p>
+                  <p className={`text-xs text-center py-6 ${isLightTheme ? 'text-gray-500' : 'text-gray-400'}`}>No solutions yet.</p>
                 ) : (
                   teamSolutions.map(solution => (
                     <div key={solution.id} className={`flex items-center justify-between gap-4 p-4 rounded-xl border transition-colors ${isLightTheme ? 'border-emerald-700 hover:bg-gray-50' : 'border-emerald-500 hover:bg-[#202025]'}`}>
@@ -910,6 +1005,17 @@ export default function TestFlowDynamic() {
             </div>
           </div>
         )}
+
+        <StartShortTestModal
+          isOpen={showStartShortTestModal}
+          onClose={() => setShowStartShortTestModal(false)}
+          isLightTheme={isLightTheme}
+          availableTests={availableShorTests}
+          gate={shorTestGate}
+          loading={shorTestLoading}
+          starting={launchingShorTest}
+          onStartNew={launchShorTest}
+        />
 
         <KPIDetailsModal 
           isOpen={showKPIDetails}
@@ -1014,9 +1120,9 @@ return (
               <div className={`max-w-2xl w-full rounded-xl p-5 sm:p-6 border text-center ${isLightTheme ? 'bg-[#22C58B] text-[#0F172A] border-emerald-700' : 'bg-[#18181B] text-white border-emerald-500'}`}>
                 <p className={`text-sm sm:text-base leading-relaxed ${isLightTheme ? 'text-[#0F172A]' : 'text-gray-200'}`}>
                   <span className={`font-bold mr-2 ${isLightTheme ? 'text-[#0F172A]' : 'text-emerald-500'}`}>
-                    {briefType === 'problem' ? 'Develop the team problem' : briefType === 'solution' ? 'Develop the team solution' : 'MANAGER BRIEF:'}
+                    {briefType === 'problem' ? 'Develop this problem' : briefType === 'solution' ? 'Develop this solution' : 'MANAGER BRIEF:'}
                   </span>
-                  {briefType === 'problem' ? managerBrief.replace(/^Team Problem:\s*/i, '') : briefType === 'solution' ? managerBrief.replace(/^Improve Team Solution:\s*/i, '') : managerBrief}
+                  {briefType === 'problem' ? managerBrief.replace(/^Problem:\s*/i, '') : briefType === 'solution' ? managerBrief.replace(/^Solution:\s*/i, '') : managerBrief}
                 </p>
               </div>
             </div>

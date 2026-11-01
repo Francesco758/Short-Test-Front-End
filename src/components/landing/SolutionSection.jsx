@@ -48,7 +48,7 @@ export const SolutionSection = ({ onPlanSelect }) => {
               className="text-center text-[1.75rem] md:text-[2.75rem] lg:text-[3.5rem] leading-[1.1] font-bold text-foreground tracking-tight mb-6"
             >
               Turn short time into{" "}
-              <span className="text-emerald-400">real</span> change.
+              <span className="text-emerald-400">real</span> change
             </h2>
 
             <p
@@ -56,8 +56,18 @@ export const SolutionSection = ({ onPlanSelect }) => {
               data-aos-delay="200"
               className="text-center text-xl md:text-2xl lg:text-3xl text-foreground/80 max-w-3xl mx-auto mb-8 leading-relaxed"
             >
-              shorTest integrates learning, innovation, and real work in one
-              short challenge.
+              <a
+                id="sentence-2"
+                href="#footnote-2"
+                onClick={(e) => {
+                  e.preventDefault();
+                  document.getElementById("footnote-2")?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="hover:text-emerald-400 transition-colors scroll-mt-20 cursor-pointer"
+              >
+                shorTest integrates learning, innovation, and real work in one
+                short challenge
+              </a>
               <sup className="text-emerald-400">2</sup>
             </p>
 
@@ -111,11 +121,11 @@ export const SolutionSection = ({ onPlanSelect }) => {
               </h3>
               <ul className="text-white leading-relaxed max-w-3xl mx-auto mb-8 text-xl text-left list-disc pl-6 space-y-2">
                 <li>
-                  Train Applied Change.
+                  Train Applied Change
                 </li>
-                <li>Measure Change KPI.</li>
-                <li>Turn problems into actionable solutions.</li>
-                <li>Validate change before adoption.</li>
+                <li>Measure Change KPI</li>
+                <li>Turn problems into actionable solutions</li>
+                <li>Validate change before adoption</li>
               </ul>
               <button
                 onClick={() => setPricingOpen(true)}

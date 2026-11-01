@@ -189,6 +189,9 @@ export default function Login() {
                       className={`w-full min-h-[44px] border text-sm rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 transition-colors focus:outline-none focus:border-[#00d4aa] focus:ring-1 focus:ring-[#00d4aa] ${isLightTheme ? 'bg-white border-emerald-700 text-[#0F172A]' : 'bg-[#0d1117] border-[#30363d] text-white'}`}
                     >
                       <option value="">Select a company</option>
+                      {guestCompanies.filter(c => c.name !== 'Adnan').length === 0 && (
+                        <option value="" disabled>No companies available for guest access</option>
+                      )}
                       {guestCompanies.filter(c => c.name !== 'Adnan').map(c => (
                         <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
@@ -278,7 +281,7 @@ export default function Login() {
           )}
 
           {/* Guest Login Button (always visible when NOT in guest form) */}
-          {!showGuestForm && guestCompanies.length > 0 && (
+          {!showGuestForm && (
             <div className="mt-4 text-center">
               <button
                 onClick={() => { setShowGuestForm(true); setError(null); }}

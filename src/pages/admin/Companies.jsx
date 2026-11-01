@@ -37,6 +37,15 @@ export default function AdminCompaniesPage() {
     message: ""
   });
 
+  // Assigned tests (per company) + un-assign
+  const [showAssignedTestsModal, setShowAssignedTestsModal] = useState(false);
+  const [assignedTestsCompany, setAssignedTestsCompany] = useState(null);
+  const [assignedTestsData, setAssignedTestsData] = useState([]);
+  const [assignedTestsLoading, setAssignedTestsLoading] = useState(false);
+  const [showUnassignConfirm, setShowUnassignConfirm] = useState(false);
+  const [unassignTarget, setUnassignTarget] = useState(null);
+  const [unassignLoading, setUnassignLoading] = useState(false);
+
   // Fetch companies and tests on component mount
   useEffect(() => {
     fetchCompanies();
@@ -310,6 +319,92 @@ export default function AdminCompaniesPage() {
   };
 
   /**
+   * Show every test assigned to this company
+   */
+  const openAssignedTestsModal = async (company) => {
+    setAssignedTestsCompany(company);
+    setAssignedTestsData([]);
+    setAssignedTestsLoading(true);
+    setShowAssignedTestsModal(true);
+
+    try {
+      const detail = await api(`/api/admin/companies/${company.id}`);
+      const rows = Array.isArray(detail?.assignedTests) ? detail.assignedTests : [];
+      setAssignedTestsData(
+        rows.map((row) => ({
+          testId: row.testId,
+          title: row.test?.title || 'shorTest',
+          status: row.test?.status || 'ACTIVE',
+          isCustom: !!row.test?.isCustom,
+          assignedAt: row.assignedAt,
+          guestAccess: !!row.guestAccess
+        }))
+      );
+    } catch (err) {
+      console.error('Failed to fetch assigned tests:', err);
+      setShowAssignedTestsModal(false);
+      setAssignedTestsCompany(null);
+      setSuccessNotification({
+        isOpen: true,
+        title: "Load Failed",
+        message: err?.error || err?.message || 'Failed to load assigned tests',
+        type: "warning"
+      });
+    } finally {
+      setAssignedTestsLoading(false);
+    }
+  };
+
+  /**
+   * Ask for confirmation before un-assigning a test
+   */
+  const requestUnassign = (assignment) => {
+    setUnassignTarget({
+      companyId: assignedTestsCompany?.id,
+      companyName: assignedTestsCompany?.name,
+      testId: assignment.testId,
+      testTitle: assignment.title
+    });
+    setShowUnassignConfirm(true);
+  };
+
+  /**
+   * Un-assign the test: removes the company assignment and only the cards that
+   * were never started. In-progress / completed tests and their results are kept.
+   */
+  const handleUnassign = async () => {
+    if (!unassignTarget) return;
+
+    try {
+      setUnassignLoading(true);
+      await api(`/api/admin/tests/${unassignTarget.testId}/assign/${unassignTarget.companyId}`, {
+        method: 'DELETE'
+      });
+
+      setAssignedTestsData((prev) => prev.filter((row) => row.testId !== unassignTarget.testId));
+      setShowUnassignConfirm(false);
+      setUnassignTarget(null);
+      await fetchCompanies();
+
+      setSuccessNotification({
+        isOpen: true,
+        title: "Test Unassigned",
+        message: `"${unassignTarget.testTitle}" is no longer assigned to ${unassignTarget.companyName}.`
+      });
+    } catch (err) {
+      console.error('Failed to unassign test:', err);
+      setSuccessNotification({
+        isOpen: true,
+        title: "Unassign Failed",
+        message: err?.error || err?.message || 'Failed to unassign test',
+        type: "warning"
+      });
+    } finally {
+      setUnassignLoading(false);
+    }
+  };
+
+  /**
    * Close modals and reset form
    */
   const closeModals = () => {
@@ -505,6 +600,13 @@ export default function AdminCompaniesPage() {
                     >
                       <FaClipboardList className="w-3 h-3 lg:w-[min(0.7vw,14px)] lg:h-[min(0.7vw,14px)]" />
                       Assign Test
+                    </button>
+                    <button
+                      onClick={() => openAssignedTestsModal(company)}
+                      className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-2 text-[min(3.5vw,14px)] sm:text-[min(2.5vw,13px)] md:text-[min(1.6vw,12px)] lg:text-[min(0.8vw,11px)] ${themeClasses.buttonPrimary}`}
+                    >
+                      <FaClipboardList className="w-3 h-3 lg:w-[min(0.7vw,14px)] lg:h-[min(0.7vw,14px)]" />
+                      Assigned Tests ({company._count?.assignedTests || 0})
                     </button>
                     <button
                       onClick={() => openEditModal(company)}
@@ -721,6 +823,100 @@ export default function AdminCompaniesPage() {
         </div>
       )}
 
+      {/* Assigned Tests Modal */}
+      {showAssignedTestsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className={`${themeClasses.modalBg} rounded-xl border-[1.5px] ${themeClasses.modalBorder} p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto`}>
+            <h3 className="text-[min(4.5vw,20px)] sm:text-[min(3.5vw,18px)] md:text-[min(2.2vw,16px)] lg:text-[min(1.4vw,18px)] font-extrabold tracking-[0.25em] text-emerald-500 uppercase mb-6">
+              Assigned Tests — {assignedTestsCompany?.name}
+            </h3>
+
+            {assignedTestsLoading ? (
+              <div className="text-center py-8">
+                <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <p className={`${themeClasses.textMuted} mt-2 text-[min(3.5vw,16px)] sm:text-[min(2.5vw,15px)]`}>
+                  Loading assigned tests...
+                </p>
+              </div>
+            ) : assignedTestsData.length === 0 ? (
+              <div className="text-center py-8">
+                <FaClipboardList className={`w-12 h-12 ${themeClasses.textSecondary} mx-auto mb-4`} />
+                <p className={`${themeClasses.textMuted} text-[min(3.5vw,16px)] sm:text-[min(2.5vw,15px)]`}>
+                  No tests assigned to this company yet.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {assignedTestsData.map((assignment) => (
+                  <div
+                    key={assignment.testId}
+                    className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-xl ${isLightTheme ? 'border-[#D6DEE5]' : 'border-gray-700'}`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className={`font-semibold text-[min(3.5vw,16px)] sm:text-[min(2.5vw,15px)] truncate ${themeClasses.text}`}>
+                        {assignment.title}
+                      </p>
+                      <div className={`flex flex-wrap items-center gap-3 mt-2 text-[min(3vw,14px)] sm:text-[min(2.2vw,13px)] ${themeClasses.textMuted}`}>
+                        <span
+                          className={`px-2 py-0.5 rounded-full font-medium border ${
+                            assignment.status === "ACTIVE"
+                              ? isLightTheme ? "bg-emerald-100 text-emerald-600 border-emerald-300" : "bg-emerald-500/20 text-emerald-500 border-emerald-500/30"
+                              : assignment.status === "DRAFT"
+                              ? isLightTheme ? "bg-yellow-100 text-yellow-600 border-yellow-300" : "bg-yellow-500/20 text-yellow-500 border-yellow-500/30"
+                              : isLightTheme ? "bg-gray-100 text-gray-600 border-gray-300" : "bg-gray-500/20 text-gray-400 border-gray-500/30"
+                          }`}
+                        >
+                          {assignment.status}
+                        </span>
+                        {assignment.isCustom && (
+                          <span className={`px-2 py-0.5 rounded-full font-medium border ${isLightTheme ? 'bg-emerald-100 text-emerald-600 border-emerald-300' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'}`}>
+                            Custom
+                          </span>
+                        )}
+                        <span>Assigned: {new Date(assignment.assignedAt).toLocaleDateString()}</span>
+                        <span>Guest access: {assignment.guestAccess ? 'On' : 'Off'}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => requestUnassign(assignment)}
+                      disabled={unassignLoading}
+                      className={`px-3 py-2 rounded-xl text-[min(3vw,14px)] sm:text-[min(2.2vw,13px)] font-black uppercase tracking-wider transition-colors disabled:opacity-50 flex-shrink-0 self-start ${themeClasses.buttonDanger}`}
+                    >
+                      Unassign
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAssignedTestsModal(false);
+                  setAssignedTestsCompany(null);
+                }}
+                className={`flex-1 px-4 py-2 rounded-xl text-[min(3.5vw,14px)] sm:text-[min(2.5vw,13px)] md:text-[min(1.6vw,12px)] lg:text-[min(0.9vw,12px)] font-black uppercase tracking-widest transition-colors ${themeClasses.buttonSecondary}`}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const company = assignedTestsCompany;
+                  setShowAssignedTestsModal(false);
+                  setAssignedTestsCompany(null);
+                  openAssignModal(company);
+                }}
+                className={`flex-1 px-4 py-2 rounded-xl text-[min(3.5vw,14px)] sm:text-[min(2.5vw,13px)] md:text-[min(1.6vw,12px)] lg:text-[min(0.9vw,12px)] font-black uppercase tracking-widest transition-colors ${themeClasses.buttonSuccess}`}
+              >
+                Assign Test
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete Confirmation Modal */}
       <DeleteConfirmModal
         isOpen={showDeleteModal}
@@ -735,6 +931,31 @@ export default function AdminCompaniesPage() {
         confirmText="Delete Company"
         cancelText="Cancel"
         variant="danger"
+      />
+
+      {/* Un-assign Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={showUnassignConfirm}
+        onClose={() => {
+          setShowUnassignConfirm(false);
+          setUnassignTarget(null);
+        }}
+        onConfirm={handleUnassign}
+        title="Unassign Test"
+        message="The test will no longer be available to this company."
+        itemName={unassignTarget?.testTitle}
+        confirmText="Unassign"
+        cancelText="Cancel"
+        variant="warning"
+        isLoading={unassignLoading}
+        warningHeading="Please note:"
+        warningItems={[
+          'Pending (never started) assignments will be removed',
+          'In-progress and completed tests are kept, with their results',
+          'You can assign the test again at any time'
+        ]}
+        loadingText="Unassigning..."
+        confirmIcon={FaClipboardList}
       />
 
       {/* Success Notification Modal */}

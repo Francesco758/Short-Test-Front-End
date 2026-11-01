@@ -10,7 +10,7 @@ export const MissionSection = () => {
             className="text-center mb-6"
           >
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-medium text-white">
-              Problem first.
+              Problem first
             </h2>
           </div>
 
@@ -19,7 +19,7 @@ export const MissionSection = () => {
             data-aos-delay="100"
             className="text-center text-2xl md:text-3xl lg:text-4xl text-white max-w-4xl mx-auto mb-12"
           >
-            Every successful change starts with the right problem.
+            Every successful change starts with the right problem
           </p>
 
           <div

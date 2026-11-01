@@ -24,7 +24,9 @@ export default function ShortTestModal({
   const [userQuery, setUserQuery] = useState("");
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [dropdownRendered, setDropdownRendered] = useState(false);
-  const [guestMode, setGuestMode] = useState(false);
+  const [guestAccessInfo, setGuestAccessInfo] = useState(null);
+  const [toggling, setToggling] = useState(false);
+  const [deactivateResult, setDeactivateResult] = useState(null);
 
   useEffect(() => {
     if (isOpen && defaultTestId) {
@@ -38,9 +40,25 @@ export default function ShortTestModal({
       setShowTestList(false);
       setTestQuery("");
       setUserQuery("");
-      setGuestMode(false);
+      setGuestAccessInfo(null);
+      setDeactivateResult(null);
     }
   }, [isOpen, defaultTestId]);
+
+  // Load the company's current guest-mode state whenever the modal opens.
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const info = await api('/api/company/tests/guest-access');
+        if (!cancelled) setGuestAccessInfo(info);
+      } catch {
+        if (!cancelled) setGuestAccessInfo(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isOpen]);
 
   useEffect(() => {
     if (showTestList) {
@@ -55,6 +73,11 @@ export default function ShortTestModal({
     [tests, selectedTestId]
   );
   const isCustomSelected = !!selectedTest?.isCustom;
+
+  // Guest mode is company-wide: it only lets people log in as guests, it is not
+  // tied to any test. Guests start any company shorTest from their own
+  // "Start a shorTest" flow, exactly like a regular user.
+  const guestActive = !!guestAccessInfo?.active;
 
   const filteredTests = useMemo(() => {
     const items = tests.filter(t => t?.id && t?.title);
@@ -84,29 +107,47 @@ export default function ShortTestModal({
   }
 
   async function handleLaunch() {
-    if (!selectedTestId) return;
-    if (!guestMode && selectedUserIds.length === 0) return;
+    if (!selectedTestId || selectedUserIds.length === 0) return;
     setLoading(true);
     setError(null);
     try {
-      if (guestMode) {
-        await api(`/api/company/tests/${selectedTest?.id ?? selectedTestId}/guest-access`, {
-          method: 'POST',
-          body: JSON.stringify({ enabled: true })
-        });
-      } else {
-        await assignTestToUsers(
-          selectedTest?.id ?? selectedTestId,
-          selectedUserIds,
-          { notify: true, brief: isCustomSelected ? brief : null, deadline: deadline || null }
-        );
-      }
+      await assignTestToUsers(
+        selectedTest?.id ?? selectedTestId,
+        selectedUserIds,
+        { notify: true, brief: isCustomSelected ? brief : null, deadline: deadline || null }
+      );
+      setDeactivateResult(null);
       onClose();
       setShowSuccessModal(true);
     } catch (e) {
       setError(e?.message || "Failed to launch test");
     } finally {
       setLoading(false);
+    }
+  }
+
+  // The flag is the only control: ticking it activates guest mode right away,
+  // unticking it deactivates it right away — no confirmation step.
+  async function handleGuestToggle(e) {
+    const enabling = e.target.checked;
+    setToggling(true);
+    setError(null);
+    try {
+      const res = await api('/api/company/tests/guest-access', {
+        method: 'POST',
+        body: JSON.stringify({ enabled: enabling })
+      });
+      if (enabling) {
+        setGuestAccessInfo({ active: true });
+      } else {
+        setDeactivateResult(res?.data || null);
+        setGuestAccessInfo({ active: false });
+        setShowSuccessModal(true);
+      }
+    } catch (err) {
+      setError(err?.message || (enabling ? "Failed to activate guest mode" : "Failed to deactivate guest mode"));
+    } finally {
+      setToggling(false);
     }
   }
 
@@ -191,7 +232,7 @@ export default function ShortTestModal({
         </button>
 
         <div className="rplt-modal-body rplt-scrollbar-hide flex-1 min-h-0 p-6 space-y-6 overflow-auto pt-10 pb-8">
-          {/* Select Short Test */}
+          {/* Select ShorTest */}
           <div>
             <button
               onClick={() => setShowTestList(v => !v)}
@@ -246,7 +287,6 @@ export default function ShortTestModal({
 
 
 
-          {!guestMode && (
           <div className={`rounded-xl border ${isLightTheme ? 'border-emerald-700 bg-white' : 'border-[#2e2e36] bg-[#18181B]'} p-5`}>
             <div className="rplt-participants-header flex items-center justify-between mb-4">
               <div className={`flex items-center gap-2 ${isLightTheme ? 'text-gray-900' : 'text-[#22C58B]'} font-semibold`}>
@@ -289,40 +329,50 @@ export default function ShortTestModal({
               )}
             </div>
           </div>
-          )}
 
-          {/* Guest Mode Toggle */}
+          {/* Guest Mode — company-wide switch, not tied to any test */}
           <div className={`rounded-xl border ${isLightTheme ? 'border-emerald-700 bg-white' : 'border-[#2e2e36] bg-[#18181B]'} p-4`}>
-            <label className="flex items-center gap-3 cursor-pointer">
+            <label className={`flex items-center gap-3 ${toggling ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}>
               <input
                 type="checkbox"
-                checked={guestMode}
-                onChange={(e) => setGuestMode(e.target.checked)}
+                checked={guestActive}
+                onChange={handleGuestToggle}
+                disabled={toggling}
                 className="w-5 h-5 accent-emerald-500"
               />
               <div className="flex items-center gap-2">
-                <FaGlobe className={`w-4 h-4 ${isLightTheme ? 'text-emerald-600' : 'text-emerald-400'}`} />
+                <FaGlobe className={`w-4 h-4 ${guestActive ? (isLightTheme ? 'text-emerald-600' : 'text-emerald-400') : (isLightTheme ? 'text-gray-400' : 'text-gray-500')}`} />
                 <div>
-                  <span className={`font-semibold text-sm ${isLightTheme ? 'text-gray-900' : 'text-gray-200'}`}>Guest Mode (Testing)</span>
-                  <p className={`text-xs ${isLightTheme ? 'text-gray-500' : 'text-gray-500'}`}>Anyone with just a name can take this test. No email or password required.</p>
+                  <span className={`font-semibold text-sm ${isLightTheme ? 'text-gray-900' : 'text-gray-200'}`}>Guest Mode</span>
+                  <p className={`text-xs ${isLightTheme ? 'text-gray-500' : 'text-gray-500'}`}>Let guests log in with just a name — no email or password required. Guests pick any shorTest themselves from their dashboard.</p>
                 </div>
               </div>
             </label>
+            {guestActive && (
+              <div className={`mt-3 rounded-lg border px-3 py-2 ${isLightTheme ? 'border-red-300 bg-red-50' : 'border-red-500/40 bg-red-900/20'}`}>
+                <p className={`text-xs font-semibold ${isLightTheme ? 'text-red-600' : 'text-red-400'}`}>
+                  Guest mode is ACTIVE — anyone with just a name can log in as a guest and start any company shorTest from their own dashboard.
+                </p>
+                <p className={`mt-1 text-xs ${isLightTheme ? 'text-red-500/90' : 'text-red-400/80'}`}>
+                  Untick the toggle to turn it off: guest assignments that were never started are removed; started or completed tests and their reports are kept.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
         <div className={`rplt-footer px-6 py-5 border-t ${isLightTheme ? 'border-gray-200 bg-white' : 'border-[#2e2e36] bg-[#09090B]'}`}>
           <button
             onClick={handleLaunch}
-            disabled={!selectedTestId || (!guestMode && selectedUserIds.length === 0) || loading}
-            className={`w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-md text-sm font-bold tracking-widest border ${(!selectedTestId || (!guestMode && selectedUserIds.length === 0) || loading) ? (isLightTheme ? 'bg-emerald-50 text-emerald-300 border-emerald-200 cursor-not-allowed' : 'bg-transparent text-[#22C58B]/40 border border-[#22C58B]/30 cursor-not-allowed') : (isLightTheme ? 'bg-[#17be8e] text-[#0F172A] border-emerald-700 hover:bg-[#15a87d]' : 'bg-transparent text-[#22C58B] border border-[#22C58B] hover:bg-[#22C58B]/10')}`}
+            disabled={(!selectedTestId || selectedUserIds.length === 0) || loading || toggling}
+            className={`w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-md text-sm font-bold tracking-widest border ${((!selectedTestId || selectedUserIds.length === 0) || loading || toggling) ? (isLightTheme ? 'bg-emerald-50 text-emerald-300 border-emerald-200 cursor-not-allowed' : 'bg-transparent text-[#22C58B]/40 border border-[#22C58B]/30 cursor-not-allowed') : (isLightTheme ? 'bg-[#17be8e] text-[#0F172A] border-emerald-700 hover:bg-[#15a87d]' : 'bg-transparent text-[#22C58B] border border-[#22C58B] hover:bg-[#22C58B]/10')}`}
           >
-            {loading ? (
+            {loading || toggling ? (
               <div className={`w-4 h-4 border-2 ${isLightTheme ? 'border-white' : 'border-[#0a0e14]'} border-t-transparent rounded-full animate-spin`} />
             ) : (
               <FaRocket className="w-4 h-4" />
             )}
-            <span>{guestMode ? 'Activate Guest Access' : 'Launch ShortTest'}</span>
+            <span>Launch ShortTest</span>
           </button>
           {error && <div className={`pt-3 text-sm ${isLightTheme ? 'text-red-500' : 'text-red-400'}`}>{error}</div>}
         </div>
@@ -333,8 +383,10 @@ export default function ShortTestModal({
       <SuccessNotificationModal
         isOpen={showSuccessModal}
         onClose={() => setShowSuccessModal(false)}
-        title={guestMode ? "Guest Access Activated" : "Test Assigned Successfully"}
-        message={guestMode ? "Anyone can now take this test by logging in as a guest with just their name." : "The test has been assigned to the selected users."}
+        title={deactivateResult ? "Guest Mode Deactivated" : "Test Assigned Successfully"}
+        message={deactivateResult
+          ? `Guest access is now off for this company. ${deactivateResult.removedAssignments || 0} unused guest assignment(s) were removed and ${deactivateResult.expiredAssignments || 0} unfinished attempt(s) were closed. Completed tests and reports were kept.`
+          : "The test has been assigned to the selected users."}
         type="success"
         duration={3000}
       />

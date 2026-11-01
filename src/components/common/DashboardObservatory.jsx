@@ -17,7 +17,7 @@ import KPIDetailsModal from '../admin/KPIDetailsModal';
 import TotalTestDetailsModal from '../admin/TotalTestDetailsModal';
 import EmergingProblemsModal from '../admin/EmergingProblemsModal';
 import EmergingSolutionsModal from '../admin/EmergingSolutionsModal';
-import { api } from '../../utils/api';
+import { api, apiStream } from '../../utils/api';
 import DataChatbot from './DataChatbot';
 
 export default function DashboardObservatory({
@@ -67,6 +67,9 @@ export default function DashboardObservatory({
   const [trendLoading, setTrendLoading] = useState(false);
   const [isAIConversationExpanded, setIsAIConversationExpanded] = useState(false);
   const [isChatOpening, setIsChatOpening] = useState(false);
+  const [aiConversationId, setAiConversationId] = useState(null);
+  const [aiInitialMessages, setAiInitialMessages] = useState(null);
+  const [aiConversationLoaded, setAiConversationLoaded] = useState(false);
   const chatOpenTimerRef = useRef(null);
   const chatOpenDurationMs = 1150;
 
@@ -107,6 +110,28 @@ export default function DashboardObservatory({
     updateResponsiveLayout();
     window.addEventListener("resize", updateResponsiveLayout);
     return () => window.removeEventListener("resize", updateResponsiveLayout);
+  }, []);
+
+  // Load the latest persisted AI conversation on mount.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await api("/api/admin/dashboard/conversations");
+        const latest = Array.isArray(list) && list.length > 0 ? list[0] : null;
+        if (!latest) { if (!cancelled) setAiConversationLoaded(true); return; }
+
+        const conv = await api(`/api/admin/dashboard/conversations/${latest.id}`);
+        if (cancelled) return;
+        setAiConversationId(latest.id);
+        setAiInitialMessages(Array.isArray(conv?.messages) ? conv.messages : []);
+      } catch (err) {
+        console.warn("Failed to load AI conversation:", err?.message);
+      } finally {
+        if (!cancelled) setAiConversationLoaded(true);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   // Responsive calculations
@@ -1139,6 +1164,28 @@ export default function DashboardObservatory({
                           signal
                         });
                         return res;
+                      }}
+                      onStreamMessage={async (payload) => {
+                        const { signal, onChunk, ...bodyPayload } = payload;
+                        return apiStream(`${chatEndpoint}/stream`, {
+                          body: bodyPayload,
+                          signal,
+                          onEvent: (ev) => {
+                            if (ev.type === 'chunk') onChunk(ev.data?.text || '');
+                          }
+                        });
+                      }}
+                      conversationId={aiConversationId}
+                      onConversationIdChange={(id) => setAiConversationId(id)}
+                      initialMessages={aiConversationLoaded ? aiInitialMessages : null}
+                      onClearConversation={async () => {
+                        try {
+                          if (aiConversationId) await api(`/api/admin/dashboard/conversations/${aiConversationId}`, { method: 'DELETE' });
+                        } catch (err) {
+                          console.warn("Failed to clear conversation:", err?.message);
+                        }
+                        setAiConversationId(null);
+                        setAiInitialMessages(null);
                       }}
                       placeholder="ASK AI - Augmented Intelligence: use change data to..."
                       title=""

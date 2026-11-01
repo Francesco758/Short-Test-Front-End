@@ -113,6 +113,9 @@ export default function CompanyDashboard({ companyId }) {
   const [shorterExplanations, setShorterExplanations] = useState({});
   const [isAIConversationExpanded, setIsAIConversationExpanded] = useState(false);
   const [isChatOpening, setIsChatOpening] = useState(false);
+  const [aiConversationId, setAiConversationId] = useState(null);
+  const [aiInitialMessages, setAiInitialMessages] = useState(null);
+  const [aiConversationLoaded, setAiConversationLoaded] = useState(false);
   const [layoutMode, setLayoutMode] = useState("desktop");
   const [viewportSize, setViewportSize] = useState({ width: BASE_DESKTOP_WIDTH, height: BASE_DESKTOP_HEIGHT });
   const [theme, setTheme] = useState(() => localStorage.getItem('observatoryTheme') === 'light' ? 'light' : 'dark');
@@ -180,6 +183,29 @@ export default function CompanyDashboard({ companyId }) {
       if (rafId) cancelAnimationFrame(rafId);
     };
   }, []);
+
+  // Load the latest persisted AI conversation on mount.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { api } = await import("../../utils/api");
+        const list = await api("/api/company/reports/conversations");
+        const latest = Array.isArray(list) && list.length > 0 ? list[0] : null;
+        if (!latest) { if (!cancelled) setAiConversationLoaded(true); return; }
+
+        const conv = await api(`/api/company/reports/conversations/${latest.id}`);
+        if (cancelled) return;
+        setAiConversationId(latest.id);
+        setAiInitialMessages(Array.isArray(conv?.messages) ? conv.messages : []);
+      } catch (err) {
+        console.warn("Failed to load AI conversation:", err?.message);
+      } finally {
+        if (!cancelled) setAiConversationLoaded(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [companyId]);
 
   useEffect(() => {
     if (layoutMode !== "desktop") return;
@@ -1089,6 +1115,30 @@ export default function CompanyDashboard({ companyId }) {
                           signal
                         });
                         return res;
+                      }}
+                      onStreamMessage={async (payload) => {
+                        const { signal, onChunk, ...bodyPayload } = payload;
+                        const { apiStream } = await import("../../utils/api");
+                        return apiStream('/api/company/reports/query/stream', {
+                          body: bodyPayload,
+                          signal,
+                          onEvent: (ev) => {
+                            if (ev.type === 'chunk') onChunk(ev.data?.text || '');
+                          }
+                        });
+                      }}
+                      conversationId={aiConversationId}
+                      onConversationIdChange={(id, title) => setAiConversationId(id)}
+                      initialMessages={aiConversationLoaded ? aiInitialMessages : null}
+                      onClearConversation={async () => {
+                        try {
+                          const { api } = await import("../../utils/api");
+                          if (aiConversationId) await api(`/api/company/reports/conversations/${aiConversationId}`, { method: 'DELETE' });
+                        } catch (err) {
+                          console.warn("Failed to clear conversation:", err?.message);
+                        }
+                        setAiConversationId(null);
+                        setAiInitialMessages(null);
                       }}
                       placeholder="ASK AI - Augmented Intelligence of your team: use change data to.."
                       title=""

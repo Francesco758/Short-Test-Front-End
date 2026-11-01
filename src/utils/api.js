@@ -1,6 +1,6 @@
-import { useState } from 'react';
-
 const BASE = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE || 'http://localhost:4000';
+
+// Core API function
 
 function fullUrl(path) {
   if (path.startsWith('http')) return path;
@@ -32,7 +32,7 @@ export async function api(path, opts = {}) {
   let payload;
   try {
     payload = await response.json();
-  } catch (e) {
+  } catch {
     if (!response.ok) throw { error: 'Network error' };
     return null;
   }
@@ -49,6 +49,84 @@ export async function api(path, opts = {}) {
     throw err;
   }
   return payload;
+}
+
+/**
+ * POST JSON and consume a Server-Sent-Events (SSE) response body.
+ * Calls `onEvent({ type, data })` for each parsed event (`meta`, `chunk`, `done`, `error`).
+ * Resolves with the `done` payload, or throws if an `error` event / non-OK status is received.
+ * Supports an AbortSignal so the Stop button can cancel the stream.
+ */
+export async function apiStream(path, { body, signal, onEvent } = {}) {
+  const token = localStorage.getItem('token');
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const url = fullUrl(path);
+
+  let response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body || {}),
+      signal
+    });
+  } catch (err) {
+    if (err.name === 'AbortError') throw err;
+    throw { error: 'Network error while streaming' };
+  }
+
+  if (!response.ok || !response.body) {
+    let payload = null;
+    try { payload = await response.json(); } catch { payload = null; }
+    if (response.status === 429) {
+      const retryAfter = response.headers.get('Retry-After') || payload?.retryAfter || null;
+      throw { error: retryAfter ? `Too many requests. Please wait ${retryAfter} before trying again.` : 'Too many requests. Please wait before trying again.', status: 429, retryAfter };
+    }
+    throw payload || { error: `Request failed (${response.status})` };
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+
+  const dispatch = (type, data) => {
+    if (typeof onEvent === 'function') onEvent({ type, data });
+  };
+
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    // SSE events are separated by blank lines; each field line is `event:` or `data:`.
+    let sepIdx;
+    while ((sepIdx = buffer.indexOf('\n\n')) !== -1) {
+      const block = buffer.slice(0, sepIdx);
+      buffer = buffer.slice(sepIdx + 2);
+
+      let eventType = 'message';
+      let dataStr = '';
+      for (const line of block.split(/\r?\n/)) {
+        if (line.startsWith('event:')) eventType = line.slice(6).trim();
+        else if (line.startsWith('data:')) dataStr += (dataStr ? '\n' : '') + line.slice(5).trim();
+      }
+      if (!dataStr) continue;
+
+      let data;
+      try { data = JSON.parse(dataStr); } catch { data = dataStr; }
+
+      if (eventType === 'error') {
+        throw { error: data?.error || 'Failed to get response' };
+      }
+      dispatch(eventType, data);
+      if (eventType === 'done') return data;
+    }
+  }
+
+  // Stream ended without a done event
+  throw { error: 'Stream ended unexpectedly' };
 }
 
 // ==================== USER API ENDPOINTS ====================

@@ -58,6 +58,15 @@ export default function AdminTestsPageSimplified() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showBulkAssignModal, setShowBulkAssignModal] = useState(false);
+
+  // Un-assign (assigned companies) state
+  const [showUnassignModal, setShowUnassignModal] = useState(false);
+  const [unassignTest, setUnassignTest] = useState(null);
+  const [testCompanyAssignments, setTestCompanyAssignments] = useState([]);
+  const [assignmentsLoading, setAssignmentsLoading] = useState(false);
+  const [showUnassignConfirm, setShowUnassignConfirm] = useState(false);
+  const [unassignTarget, setUnassignTarget] = useState(null);
+  const [unassignLoading, setUnassignLoading] = useState(false);
   const [selectedTest, setSelectedTest] = useState(null);
   
   // Success notification state
@@ -474,6 +483,88 @@ export default function AdminTestsPageSimplified() {
     setShowAssignModal(true);
   };
 
+  /**
+   * Show every company this test is assigned to (+ un-assign)
+   */
+  const openUnassignModal = async (test) => {
+    setUnassignTest(test);
+    setTestCompanyAssignments([]);
+    setAssignmentsLoading(true);
+    setShowUnassignModal(true);
+
+    try {
+      const detail = await api(`/api/admin/tests/${test.id}`);
+      const rows = Array.isArray(detail?.companyAssignments) ? detail.companyAssignments : [];
+      setTestCompanyAssignments(
+        rows.map((row) => ({
+          assignmentId: row.id,
+          companyId: row.companyId,
+          companyName: row.company?.name || "Company",
+          assignedAt: row.assignedAt,
+          guestAccess: !!row.guestAccess
+        }))
+      );
+    } catch (err) {
+      console.error("Failed to fetch company assignments:", err);
+      setShowUnassignModal(false);
+      setUnassignTest(null);
+      setSuccessNotification({
+        isOpen: true,
+        title: "Load Failed",
+        message: err?.error || err?.message || "Failed to load assigned companies",
+        type: "warning"
+      });
+    } finally {
+      setAssignmentsLoading(false);
+    }
+  };
+
+  const requestUnassignCompany = (assignment) => {
+    setUnassignTarget({
+      companyId: assignment.companyId,
+      companyName: assignment.companyName,
+      testId: unassignTest?.id,
+      testTitle: unassignTest?.title
+    });
+    setShowUnassignConfirm(true);
+  };
+
+  /**
+   * Un-assign: removes the company assignment and only the cards that were never
+   * started. In-progress / completed tests and their results are kept.
+   */
+  const handleUnassignFromCompany = async () => {
+    if (!unassignTarget) return;
+
+    try {
+      setUnassignLoading(true);
+      await api(`/api/admin/tests/${unassignTarget.testId}/assign/${unassignTarget.companyId}`, {
+        method: "DELETE",
+      });
+
+      setTestCompanyAssignments((prev) => prev.filter((row) => row.companyId !== unassignTarget.companyId));
+      setShowUnassignConfirm(false);
+      setUnassignTarget(null);
+      await fetchTests();
+
+      setSuccessNotification({
+        isOpen: true,
+        title: "Test Unassigned",
+        message: `"${unassignTarget.testTitle}" is no longer assigned to ${unassignTarget.companyName}.`,
+      });
+    } catch (err) {
+      console.error("Failed to unassign test:", err);
+      setSuccessNotification({
+        isOpen: true,
+        title: "Unassign Failed",
+        message: err?.error || err?.message || "Failed to unassign test",
+        type: "warning"
+      });
+    } finally {
+      setUnassignLoading(false);
+    }
+  };
+
   const openBulkAssignModal = () => {
     setSelectedTests([]);
     setSelectedCompanies([]);
@@ -678,6 +769,7 @@ Begin by introducing yourself and the assessment, then start the conversation na
               iconTone="red"
               isLightTheme={isLightTheme}
               onAssign={() => openAssignModal(customTest)}
+              onUnassign={() => openUnassignModal(customTest)}
               onEdit={() => {
                 setSelectedTest(customTest);
                 setTestTitle(customTest.title || "");
@@ -744,6 +836,7 @@ Begin by introducing yourself and the assessment, then start the conversation na
                   test={test}
                   isLightTheme={isLightTheme}
                   onAssign={() => openAssignModal(test)}
+                  onUnassign={() => openUnassignModal(test)}
                   onEdit={() => openEditModal(test)}
                   onDelete={() => showDeleteTestConfirmation(test.id)}
                 />
@@ -823,6 +916,107 @@ Begin by introducing yourself and the assessment, then start the conversation na
         />
       )}
 
+      {/* Un-assign Modal (companies this test is assigned to) */}
+      {showUnassignModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+          <div className={`rounded-xl border-[1.5px] w-full max-w-2xl max-h-[90vh] overflow-y-auto ${themeClasses.modalBg} ${themeClasses.modalBorder}`}>
+            <div className={`p-4 border-b ${themeClasses.headerBorder} flex items-center justify-between`}>
+              <h3 className="text-[min(4.5vw,20px)] sm:text-[min(3.5vw,18px)] md:text-[min(2.2vw,16px)] lg:text-[min(1.4vw,18px)] font-extrabold tracking-[0.25em] text-emerald-500 uppercase">
+                Assigned Companies — {unassignTest?.title}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowUnassignModal(false);
+                  setUnassignTest(null);
+                }}
+                className={`text-lg leading-none ${themeClasses.textSecondary}`}
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="p-6 space-y-3">
+              {assignmentsLoading ? (
+                <div className="text-center py-8">
+                  <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                  <p className={`${themeClasses.textMuted} mt-2 text-[min(3.5vw,16px)] sm:text-[min(2.5vw,15px)]`}>
+                    Loading assigned companies...
+                  </p>
+                </div>
+              ) : testCompanyAssignments.length === 0 ? (
+                <div className="text-center py-8">
+                  <FaBuilding className={`w-12 h-12 ${themeClasses.textSecondary} mx-auto mb-4`} />
+                  <p className={`${themeClasses.textMuted} text-[min(3.5vw,16px)] sm:text-[min(2.5vw,15px)]`}>
+                    This test is not assigned to any company yet.
+                  </p>
+                </div>
+              ) : (
+                testCompanyAssignments.map((assignment) => (
+                  <div
+                    key={assignment.assignmentId || assignment.companyId}
+                    className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-xl ${isLightTheme ? 'border-gray-300' : 'border-gray-700'}`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className={`font-semibold text-[min(3.5vw,16px)] sm:text-[min(2.5vw,15px)] truncate ${themeClasses.text}`}>
+                        {assignment.companyName}
+                      </p>
+                      <div className={`flex flex-wrap items-center gap-3 mt-2 text-[min(3vw,14px)] sm:text-[min(2.2vw,13px)] ${themeClasses.textMuted}`}>
+                        <span>Assigned: {new Date(assignment.assignedAt).toLocaleDateString()}</span>
+                        <span>Guest access: {assignment.guestAccess ? "On" : "Off"}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => requestUnassignCompany(assignment)}
+                      disabled={unassignLoading}
+                      className={`px-3 py-2 rounded-lg text-[min(3.5vw,14px)] sm:text-[min(2.5vw,13px)] md:text-[min(1.6vw,12px)] lg:text-[min(0.8vw,11px)] font-black uppercase tracking-wider transition-colors disabled:opacity-50 flex-shrink-0 self-start ${themeClasses.buttonDanger}`}
+                    >
+                      Unassign
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="px-6 pb-6">
+              <button
+                onClick={() => {
+                  setShowUnassignModal(false);
+                  setUnassignTest(null);
+                }}
+                className={`w-full px-4 py-2 rounded-xl text-[min(3.5vw,14px)] sm:text-[min(2.5vw,13px)] md:text-[min(1.6vw,12px)] lg:text-[min(0.9vw,12px)] font-black uppercase tracking-widest transition-colors ${themeClasses.buttonSecondary}`}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Un-assign Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={showUnassignConfirm}
+        onClose={() => {
+          setShowUnassignConfirm(false);
+          setUnassignTarget(null);
+        }}
+        onConfirm={handleUnassignFromCompany}
+        title="Unassign Test"
+        message="The test will no longer be available to this company."
+        itemName={unassignTarget?.testTitle}
+        confirmText="Unassign"
+        cancelText="Cancel"
+        variant="warning"
+        isLoading={unassignLoading}
+        warningHeading="Please note:"
+        warningItems={[
+          "Pending (never started) assignments will be removed",
+          "In-progress and completed tests are kept, with their results",
+          "You can assign the test again at any time",
+        ]}
+        loadingText="Unassigning..."
+        confirmIcon={FaClipboardList}
+      />
+
       {/* Delete Custom Test Confirmation Modal */}
       <DeleteConfirmModal
         isOpen={showDeleteCustomTestModal}
@@ -878,7 +1072,7 @@ function StatsCard({ title, value, isLightTheme }) {
   );
 }
 
-function TestCard({ test, iconTone = 'green', isLightTheme, onAssign, onEdit, onDelete }) {
+function TestCard({ test, iconTone = 'green', isLightTheme, onAssign, onUnassign, onEdit, onDelete }) {
   const [showPreview, setShowPreview] = useState(false);
 
   const iconClassName =
@@ -895,6 +1089,7 @@ function TestCard({ test, iconTone = 'green', isLightTheme, onAssign, onEdit, on
     buttonSuccess: isLightTheme ? 'bg-emerald-50 border-emerald-300 text-emerald-600 hover:bg-emerald-100' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20',
     buttonSecondary: isLightTheme ? 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200' : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700',
     buttonBlue: isLightTheme ? 'bg-emerald-50 border-emerald-300 text-emerald-600 hover:bg-emerald-100' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20',
+    buttonPrimary: isLightTheme ? 'bg-white border-gray-300 text-emerald-600 hover:bg-gray-50' : 'bg-black border-gray-700 text-emerald-500 hover:bg-gray-900',
     previewBg: isLightTheme ? 'bg-gray-50 border-gray-300' : 'bg-black border-gray-700',
     previewLabel: isLightTheme ? 'text-gray-700' : 'text-gray-300',
     previewText: isLightTheme ? 'text-gray-600' : 'text-gray-400',
@@ -963,6 +1158,13 @@ function TestCard({ test, iconTone = 'green', isLightTheme, onAssign, onEdit, on
             className={`px-3 py-1.5 rounded-lg text-[min(3.5vw,14px)] sm:text-[min(2.5vw,13px)] md:text-[min(1.6vw,12px)] lg:text-[min(0.8vw,11px)] transition-colors ${tc.buttonSuccess}`}
           >
             Assign
+          </button>
+          <button
+            onClick={onUnassign}
+            className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-2 text-[min(3.5vw,14px)] sm:text-[min(2.5vw,13px)] md:text-[min(1.6vw,12px)] lg:text-[min(0.8vw,11px)] ${tc.buttonPrimary}`}
+          >
+            <FaClipboardList className="w-3 h-3 lg:w-[min(0.7vw,14px)] lg:h-[min(0.7vw,14px)]" />
+            Unassign
           </button>
           <button
             onClick={onEdit}

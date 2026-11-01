@@ -26,11 +26,11 @@ export const ContactSection = () => {
             className="text-center mb-12"
           >
             <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">
-              Stop reading.
+              Stop reading
             </h2>
             <p className="text-xl md:text-2xl text-gray-400">
               Start solving something{" "}
-              <span className="text-white font-medium">real</span>.
+              <span className="text-white font-medium">real</span>
             </p>
           </div>
 
@@ -134,7 +134,7 @@ export const ContactSection = () => {
                 Message received
               </h3>
               <p className="text-gray-400">
-                We'll get back to you shortly. Very shortly.
+                We'll get back to you shortly. Very shortly
               </p>
             </div>
           )}

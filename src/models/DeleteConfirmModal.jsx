@@ -12,6 +12,14 @@ export default function DeleteConfirmModal({
   cancelText = "Cancel",
   isLoading = false,
   variant = "danger", // "danger", "warning"
+  warningHeading = "Warning:",
+  warningItems = [
+    "This action is permanent and irreversible",
+    "All associated data will be lost",
+    "You cannot recover deleted items",
+  ],
+  loadingText = "Deleting...",
+  confirmIcon = FaTrash,
 }) {
   if (!isOpen) return null;
 
@@ -34,6 +42,7 @@ export default function DeleteConfirmModal({
 
   const config = variantConfig[variant] || variantConfig.danger;
   const IconComponent = config.icon;
+  const ConfirmIcon = confirmIcon || FaTrash;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -77,11 +86,11 @@ export default function DeleteConfirmModal({
           <div className="flex items-start gap-3">
             <FaExclamationTriangle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
             <div className="text-sm text-red-800">
-              <p className="font-medium">Warning:</p>
+              <p className="font-medium">{warningHeading}</p>
               <ul className="mt-1 list-disc list-inside space-y-1">
-                <li>This action is permanent and irreversible</li>
-                <li>All associated data will be lost</li>
-                <li>You cannot recover deleted items</li>
+                {warningItems.map((item, i) => (
+                  <li key={i}>{item}</li>
+                ))}
               </ul>
             </div>
           </div>
@@ -102,11 +111,11 @@ export default function DeleteConfirmModal({
             {isLoading ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Deleting...
+                {loadingText}
               </>
             ) : (
               <>
-                <FaTrash className="h-4 w-4" />
+                <ConfirmIcon className="h-4 w-4" />
                 {confirmText}
               </>
             )}
